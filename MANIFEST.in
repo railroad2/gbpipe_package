@@ -1,0 +1,9 @@
+recursive-include gbpipe/data/ *
+recursive-include gbpipe/test/ *
+
+include gbpipe/tmp/pixelinfo.dat
+include gbpipe/tmp/default.ini
+include gbpipe/default.ini
+include gbpipe/gb_fp_new.dat
+include gbpipe/gb_optics_sim.csv
+include gbpipe/gbparam.py
