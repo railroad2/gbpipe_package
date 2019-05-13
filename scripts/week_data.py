@@ -15,35 +15,37 @@ def doit():
     fg145name = "/home/klee_ext/kmlee/maps/fg145_equ.fits"
     fg220name = "/home/klee_ext/kmlee/maps/fg225_equ.fits"
     dt = datetime.datetime.now()
-    nproc = 16
-    nside_hitmap = 64
+    nproc = 8
+    nside_hitmap = None
 
     outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_test".format(dt.strftime("%Y-%m-%d"))
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=cmbname, nmodin=0,
+        fsample=fsample, mapname=cmbname, module_id=0,
         fprefix="GBtod_cmb220", outpath=outpath,
         nside_hitmap=nside_hitmap, nproc=nproc)
 
+    return 
+
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=cmbname, nmodin=(1, 2, 3, 4, 5, 6), 
+        fsample=fsample, mapname=cmbname, module_id=(1, 2, 3, 4, 5, 6), 
         fprefix="GBtod_cmb145", outpath=outpath, 
         nside_hitmap=nside_hitmap, nproc=nproc)
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=fg220name, nmodin=0,
+        fsample=fsample, mapname=fg220name, module_id=0,
         fprefix="GBtod_fg220", outpath=outpath,
         nside_hitmap=False, nproc=nproc)
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=fg145name, nmodin=(1, 2, 3, 4, 5, 6),
+        fsample=fsample, mapname=fg145name, module_id=(1, 2, 3, 4, 5, 6),
         fprefix="GBtod_fg145", outpath=outpath,
         nside_hitmap=False, nproc=nproc)
 
     gbsim.GBsim_noise(t1, t2, dtsec=dtsec,
         fsample=fsample, 
         wnl=1e-10, fknee=0.1, alpha=1, rseed=0,
-        nmodin=None, fprefix="GBtod_noise",
+        module_id=None, fprefix="GBtod_noise",
         outpath=outpath, nproc=nproc)
 
 if __name__ == "__main__":

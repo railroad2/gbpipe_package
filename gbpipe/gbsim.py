@@ -23,26 +23,36 @@ sys.path.append(DIRNAME+'../')
 from gbpipe import gbdir
 from gbpipe.utils import dl2cl, cl2dl
 from gbpipe.gbparam import GBparam
-from gbpipe.utils import setLogger, funcname, today
+from gbpipe.utils import set_logger, function_name, today
 
 
 def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
-    """
-    Generates noise tod which has power spectrum of 
+    """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
 
+    Parameters
+    ----------
     l : int
-        data length 
+        Data length 
     wnl : float
-        white noise level (NET: Noise Equivalent Temperature)
+        White noise level (NET: Noise Equivalent Temperature)
     fknee : float
-        knee frequency
+        Knee frequency.
     fsample : float
-        sampling frequency
+        Sampling frequency.
+        Default is 1000 sps(sample per second).
     alpha : float
-        exponent of 1/f noise window
+        Exponent of 1/f noise window.
+        Default is 1.
+    rseed : int
+        Random seed for white noise generation.
+
+    Returns
+    -------
+    n_1f : float array
+        1/f noise. Real part of inverse fft of the spectrum.
     """ 
-    log = setLogger(funcname())
+    log = set_logger(function_name())
     
     t = np.arange(l) * 1./fsample
     np.random.seed(rseed)
@@ -57,14 +67,32 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
 
     s_1f = s0 * s
 
-    n_1f = np.fft.ifft(s_1f)
+    n_1f = np.fft.ifft(s_1f).real
 
-    return n_1f.real 
+    return n_1f
 
 
 def sim_obs_singlepix(t1, t2, fsample=1000): 
+    """ Simulation module for an observation with a single pixel. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    
+    Returns
+    -------
+    m_nhit : float array
+        N-hit map for the observation
+    """
+    
     par = GBparam()
-    log = setLogger(funcname())
+    log = set_logger(function_name())
 
     ##################################
     # define local sidereal time
@@ -78,7 +106,7 @@ def sim_obs_singlepix(t1, t2, fsample=1000):
 
     ut = st.unix + np.arange(0, int(et.unix-st.unix), 1./fsample)
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
+    lst_1s = gbdir.unixtime2lst(ut_1s)
     f = interp1d(ut_1s, lst_1s, fill_value="extrapolate")
     lst = f(ut)
 
@@ -96,7 +124,7 @@ def sim_obs_singlepix(t1, t2, fsample=1000):
     ##########################################
 
     v = (0, 0, 1)
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
     v_obs = gbdir.Rotate(v_arr=v, rmat=rmat) 
 
     #########################################
@@ -118,8 +146,26 @@ def sim_obs_singlepix(t1, t2, fsample=1000):
 
 
 def sim_obs_focalplane(t1, t2, fsample=1000): 
+    """ Simulation module for an observation with a focal plane.
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    
+    Returns
+    -------
+    m_nhit145 : float array
+        N-hit map for 145 GHz modules.
+    m_nhit220 : float array
+        N-hit map for 220 GHz modules.
+    """
     par = GBparam()
-    log = setLogger(funcname())
+    log = set_logger(function_name())
 
     t0 = time.time()
     ##################################
@@ -142,7 +188,7 @@ def sim_obs_focalplane(t1, t2, fsample=1000):
 
     ut = st.unix + np.arange(0, int(et.unix-st.unix), 1./fsample)
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
+    lst_1s = gbdir.unixtime2lst(ut_1s)
     f = interp1d(ut_1s, lst_1s, fill_value="extrapolate")
     lst = f(ut)
 
@@ -165,7 +211,7 @@ def sim_obs_focalplane(t1, t2, fsample=1000):
     theta = par.pixinfo['theta']
     phi =par.pixinfo['phi']
     v = hp.ang2vec(np.radians(theta), np.radians(phi))
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
     v_obs = gbdir.Rotate(v_arr=v, rmat=rmat) 
     v_obs = np.transpose(v_obs, (2,1,0))
 
@@ -216,7 +262,34 @@ def sim_obs_focalplane(t1, t2, fsample=1000):
 
 
 def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
-    log = setLogger(funcname())
+    """ Simulation module for an observation with a single pixel. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    map_in : float array
+        Input map for tod simulation.
+        If None, it synthesizes a map by using rseed as a random seed. 
+        Default is None.
+    rseed : int
+        Random seed that is used to synthesize the source map.
+    
+    Returns
+    -------
+    tod_I : float array
+        Simulated tod I.
+    tod_Q : float array
+        Simulated tod I.
+    tod_U : float array
+        Simulated tod I
+    """
+    log = set_logger(function_name())
     if map_in is None:
         ## synthesize TQU map 
         log.info('Synthesizing a map')
@@ -258,7 +331,7 @@ def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
     log.info('Making time stamps')
     ut = st.unix + np.arange(0, int(et.unix-st.unix), 1./fsample)
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
+    lst_1s = gbdir.unixtime2lst(ut_1s)
     f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
     lst = f(ut)
 
@@ -282,7 +355,7 @@ def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
     pv = np.array((np.cos(pangle), np.sin(pangle), pangle*0)).T
 
     log.info('calculating rotation matrix ')
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
 
     log.info('Rotate vectors')
     v_obs = gbdir.Rotate(v_arr=v, rmat=rmat) 
@@ -320,12 +393,45 @@ def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
 
     log.info('TOD simulation end')
     
-    return [tod_I, tod_Q, tod_U] 
+    return tod_I, tod_Q, tod_U
 
 
 def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
+    """ Simulation module for an observation with a focal plane. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    map_in : float array
+        Input map for tod simulation.
+        If None, it synthesizes a map by using rseed as a random seed. 
+        Default is None.
+    rseed : int
+        Random seed that is used to synthesize the source map.
+    
+    Returns
+    -------
+    ut : float array
+        Time stamp in unixtime.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_I : float array
+        Simulated tod I.
+    tod_Q : float array
+        Simulated tod I.
+    tod_U : float array
+        Simulated tod I
+    """
     param = GBparam()
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
     if map_in is None:
         ## synthesize TQU map 
         log.info('Synthesizing a map')
@@ -365,7 +471,7 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     #ut = np.arange(0, int(et.unix-st.unix), 1./fsample)
 
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
+    lst_1s = gbdir.unixtime2lst(ut_1s)
     f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
     lst = f(ut)
 
@@ -393,7 +499,7 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     #pv = np.array((np.cos(pangle), np.sin(pangle), pangle*0)).T
 
     log.info('calculating rotation matrix ')
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
 
     log.info('Rotate vectors')
 
@@ -452,8 +558,42 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
 
 
 def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
+    """ Simulation module for an observation with a focal plane. 
+    To test the multiprocessing. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    map_in : float array
+        Input map for tod simulation.
+        If None, it synthesizes a map by using rseed as a random seed. 
+        Default is None.
+    rseed : int
+        Random seed that is used to synthesize the source map.
+    
+    Returns
+    -------
+    ut : float array
+        Time stamp in unixtime.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_I : float array
+        Simulated tod I.
+    tod_Q : float array
+        Simulated tod I.
+    tod_U : float array
+        Simulated tod I
+    """
     param = GBparam()
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
 
     if map_in is None:
         ## synthesize TQU map 
@@ -494,7 +634,7 @@ def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
     #ut = np.arange(0, int(et.unix-st.unix), 1./fsample)
 
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
+    lst_1s = gbdir.unixtime2lst(ut_1s)
     f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
     lst = f(ut)
 
@@ -523,7 +663,7 @@ def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
     #pv = np.array((np.cos(pangle), np.sin(pangle), pangle*0)).T
 
     log.info ('calculating rotation matrix ')
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
 
     log.info ('Rotate vectors')
 
@@ -597,9 +737,61 @@ def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
     return ut, dec, ra, tod_I, tod_Q, tod_U
 
 
-def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42, nmod=None, nside_hitmap=False, xp=True):
+def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
+                              module_id=None, nside_hitmap=False, 
+                              convention_LT=True):
+    """ Simulation module for an observation with a focal plane. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    map_in : float array
+        Input map for tod simulation.
+        If None, it synthesizes a map by using rseed as a random seed. 
+        Default is None.
+    rseed : int
+        Random seed that is used to synthesize the source map.
+        Default is 42.
+    module_id : int or int array
+        Indices of the modules to be used.
+    nside_hitmap : int
+        Nside of N-hit maps to be generated.
+        If False, N-hit map will not be generated.
+    convention_LT : bool
+        If True, the psi angles are defined as LightTools convention. 
+        Otherwise, the psi angles are defined in spherical coordinates.  
+    
+    Returns
+    -------
+    ut : float array
+        Time stamp in unixtime.
+    el : float or float array
+        Elevation.
+    az : float array
+        Azimuth angle
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_I_mod : float array
+        Simulated tod I for given modules.
+    tod_Q_mod : float array
+        Simulated tod I for given modules.
+    tod_U_mod : float array
+        Simulated tod I for given modules.
+    module_id_set : int or int array
+        Indices of the used modules.
+    hitmap : float array
+        N-hit maps for each modules.
+    """ 
     param = GBparam()
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
 
     if map_in is None:
         ## synthesize TQU map 
@@ -615,36 +807,21 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42, nmod=
         np.random.seed(rseed)
         map_in = hp.synfast(cls=cls.T, nside=1024, new=True)
 
+    ##################################
+    # calculate local sidereal time
+    ##################################
 
-    ##################################
-    # define local sidereal time
-    ##################################
     st = Time(t1, format='isot', scale='utc')
     et = Time(t2, format='isot', scale='utc')
 
-    #ut_arr = np.arange(st.unix, et.unix, 1./fsample)
-    #ut = Time(ut_arr, format='unix') 
-    #lst_ut = ut.sidereal_time('apparent', par.lon).deg # takes ~ 2500 s for 6 hr observation
-
-    # assuming that the Earth rotation is constant within a second.
-    """ previous version
-    ut1 = Time(np.arange(st.unix, et.unix+1, 1.), format='unix')
-    ut = [ut1.unix[i] + np.arange(fsample)*(ut1.unix[i+1]-ut1.unix[i])/fsample for i in range(len(ut1)-1)]
-    ut = np.array(ut).flatten()
-    lst1 = ut1.sidereal_time('apparent', par.lon).deg
-    lst = [lst1[i] + np.arange(fsample)*(lst1[i+1]-lst1[i])/fsample for i in range(len(lst1)-1)]
-    lst = np.array(lst).flatten()
-    """
-
     log.info('Making time stamps')
+    ## assuming that the Earth rotation is constant within a second.
     ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
-    #ut = np.arange(0, int(et.unix-st.unix), 1./fsample)
-
     ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2LST(ut_1s)
-    f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
-    lst = f(ut)
-
+    lst_1s = gbdir.unixtime2lst(ut_1s)
+    ut2lst_tmp = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
+    lst = ut2lst_tmp(ut)
+    del(ut2lst_tmp)
 
     ######################################
     # define GB rotation (azimuth) angle 
@@ -654,78 +831,91 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42, nmod=
     t = ut-ut[0]
     az = (az0 + t * param.omega_gb) % 360
 
-
     ##########################################
     # get Rotation matrix & rotate
     ##########################################
 
     ## get module pixels
-    modset = set(map(int, param.pixinfo['mod'])) # modset: all modules in pixel information
-    if (nmod is None):
-        nmod = list(modset)
+    ## modset: all modules in pixel information
+    modset = set(map(int, param.pixinfo['mod'])) 
+    if (module_id is None):
+        module_id = list(modset)
 
-    lmod = len(np.array(nmod).flatten())    # lmod: number of modules
+    ## modcnt: number of modules
+    module_cnt = len(np.array(module_id).flatten())    
 
-    if lmod == 0: 
-        nmod = list(modset)
-    elif lmod == 1:
-        nmod = [nmod]
+    if module_cnt == 0: 
+        module_id = list(modset)
+    elif module_cnt == 1:
+        module_id = [module_id]
     else:
-        nmod = list(nmod)
+        module_id = list(module_id)
 
-    if not (set(nmod) <= modset):  # Is selected modules a subset of all modules?
-        log.warning('nmod {} should be a subset of {}. Using available modules only.'.format(nmod, modset))
-        nmod = list(set(nmod).intersection(modset))
-        if len(nmod) == 0:
+    ## Is selected modules a subset of modset? 
+    if not (set(module_id) <= modset):  
+        log.warning('module_id {} should be a subset of {}. Using available modules only.'.format(module_id, modset))
+        module_id_set = list(set(module_id).intersection(modset))
+        if len(module_id_set) == 0:
             log.critical('No available modules.')
             raise
+    else:
+        module_id_set = module_id
 
-    modpixs = []
-    nmodpixs = []
-    modpixs_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), nmod))
-    modpixs = sum(modpixs_arr, [])
-    nmodpixs = list(map(len, modpixs_arr))
+    ## considering pixels in modules
+    modpix = []
+    modpix_cnt = []
+    modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id_set))
+    modpix = sum(modpix_arr, [])
+    modpix_cnt = list(map(len, modpix_arr))
 
-    for n, npix in zip(nmod, nmodpixs):
+    ## print out the number of pixels in each module.
+    for n, npix in zip(module_id_set, modpix_cnt):
         log.debug('Module {} has {} pixels.'.format(int(n), npix))
 
     ## get rotation matrices
-    theta = param.pixinfo['theta'][modpixs]
-    phi = param.pixinfo['phi'][modpixs]
+    theta = param.pixinfo['theta'][modpix]
+    phi = param.pixinfo['phi'][modpix]
 
-    v_arr = hp.ang2vec(np.radians(theta), np.radians(phi)) # direction in horizontal coordinate, v_arr: (ndetector * 3)
+    ## direction in horizontal coordinate, v_arr: (ndetector * 3)
+    v_arr = hp.ang2vec(np.radians(theta), np.radians(phi)) 
     log.debug('v_arr.shape: {}'.format(v_arr.shape))
-    del(theta); del(phi)
+    del(theta)
+    del(phi)
     
     log.info('calculating rotation matrix ')
-    el = param.EL
-    rmat = gbdir.Rot_matrix(AZ=az, LST=lst)
+    el = param.el
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
     del(lst)
 
     log.info('Rotate vectors')
-    v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat) # direction on sky, v_obs: (nsample * 3 * ndetector)
+    ## direction on sky, v_obs: (nsample * 3 * ndetector)
+    v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat) 
     
     ## rotate zenith to get declination and right ascension
     v_zen = gbdir.Rotate(v_arr=(0, 0, 1), rmat=rmat)
-    ra, dec = hp.vec2ang(v_zen, lonlat=True) # longitude and latitude in degrees
+
+    ## longitude and latitude in degrees
+    ra, dec = hp.vec2ang(v_zen, lonlat=True) 
 
     ## polarization angles
-    
-    #pangle = np.radians(22.5)
-    pangle = param.pixinfo['omtffr'][modpixs]
-    if (xp):
-        pv = gbdir.psi2vec_xp(v_arr=v_arr, psi=pangle) # pol. vectors on focalplane, pv: (ndetector * 3)
+    pangle = param.pixinfo['omtffr'][modpix]
+    if (convention_LT):
+        ## polarisation vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec_xp(v_arr=v_arr, psi=pangle) 
     else:
-        pv = gbdir.psi2vec(v_arr=v_arr, psi=pangle) # pol. vectors on focalplane, pv: (ndetector * 3)
+        ## polarization vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec(v_arr=v_arr, psi=pangle) 
     log.debug('pv.shape: {}'.format(pv.shape))
 
     log.info ('Rotate polarization vectors')
-    pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat) # pol. vectors on sky, pv_obs:(nsample * 3 * ndetector)
+    ## polarization vectors on sky, pv_obs:(nsample * 3 * ndetector)
+    pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat) 
 
     log.info('Calculating polarization directions')
     log.debug('v_obs.shape: {}'.format(v_obs.shape))
     log.debug('pv_obs.shape: {}'.format(pv_obs.shape))
-    psi_obs = gbdir.angle_from_meridian(v_obs, pv_obs) #pol. angles on sky psi_obs: (nsample * ndetector)
+    ## polarization angles on sky psi_obs: (nsample * ndetector)
+    psi_obs = gbdir.angle_from_meridian(v_obs, pv_obs) 
 
     del(pv_obs)
 
@@ -738,14 +928,18 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42, nmod=
 
     log.info('getting npix from vectors ')
 
-    pix_obs = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]) # observed pixels, pix_obs: (nsample * ndetector)
+    ## observed pixels, pix_obs: (nsample * ndetector)
+    pix_obs = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
     if nside_hitmap:
-        pix_hit = hp.vec2pix(nside_hitmap, v_obs[:,0], v_obs[:,1], v_obs[:,2]) # observed pixels, pix_obs: (nsample * ndetector)
+        # observed pixels for N-hit map, pix_hit: (nsample * ndetector)
+        pix_hit = hp.vec2pix(nside_hitmap, 
+                             v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
     log.info('getting tods')
 
     del(v_obs); 
 
-    I_obs = map_in[0][pix_obs] # I/Q/U_obs: (nsample * ndetector)
+    # I/Q/U_obs: (nsample * ndetector)
+    I_obs = map_in[0][pix_obs] 
     Q_obs = map_in[1][pix_obs]
     U_obs = map_in[2][pix_obs]
 
@@ -761,39 +955,62 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42, nmod=
     pix_mod = [] 
     n0 = 0
 
-    for n in np.add.accumulate(nmodpixs):
-        tod_I_mod.append(tod_I[:, n0:n])  #tod_I/Q/U_mod: (nmod * nsample * ndetector)
+    for n in np.add.accumulate(modpix_cnt):
+        #tod_I/Q/U_mod: (module_cnt * nsample * ndetector)
+        tod_I_mod.append(tod_I[:, n0:n])  
         tod_Q_mod.append(tod_Q[:, n0:n])
         tod_U_mod.append(tod_U[:, n0:n])
         if nside_hitmap:
             pix_mod.append(pix_hit[:, n0:n])
         n0 = n
 
-    log.info('TOD simulation end')
-    result = [ut, el, az, dec, ra, tod_I_mod, tod_Q_mod, tod_U_mod, nmod]
 
+    hitmap = []
     if nside_hitmap:
-        hitmap = []
         for pixs in pix_mod:
             hitmap_tmp = np.full(12*nside_hitmap**2, hp.UNSEEN)
             npix, nhit = np.unique(pixs, return_counts=True) 
             hitmap_tmp[npix] = nhit
             hitmap.append(hitmap_tmp)
 
-        result.append(hitmap)
-    else:
-        result.append([])
+    log.info('TOD simulation end')
 
-    
-    #return ut, dec, ra, tod_I_mod, tod_Q_mod, tod_U_mod, nmod
-    return result
+    return ut, el, az, dec, ra, \
+           tod_I_mod, tod_Q_mod, tod_U_mod, \
+           module_id_set, hitmap
 
 
 def wr_tod2fits(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
-    log = setLogger(mp.current_process().name)
+    """ Write tod in fits file.
+    
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    az : float array
+        Azimuth angles.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_I : float array
+        TOD I 
+    tod_Q : float array
+        TOD Q
+    tod_U : float array 
+        TOD U
+
+    Raise
+    -----
+    WARNING
+        If the fits file is exists, the data will be overwritten.
+    """
+    log = set_logger(mp.current_process().name)
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='UT',    format='D', array=ut,  dim='{}'.format('')),
-        fits.Column(name='AZ',    format='E', array=az,  dim='{}'.format('')),
+        fits.Column(name='az',    format='E', array=az,  dim='{}'.format('')),
         fits.Column(name='DEC',   format='E', array=dec, dim='{}'.format('')),
         fits.Column(name='RA',    format='E', array=ra,  dim='{}'.format('')),
         fits.Column(name='TOD_I', format='{}E'.format(np.prod(np.shape(tod_I)[1:])),
@@ -814,10 +1031,37 @@ def wr_tod2fits(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     return
                 
 
-def wr_tod2fits_mod(fname, ut, az, dec, ra, tod_I_mod, tod_Q_mod, tod_U_mod, nmod, **aheaders):
-    log = setLogger(mp.current_process().name)
+def wr_tod2fits_mod(fname, ut, az, dec, ra, 
+                    tod_I_mod, tod_Q_mod, tod_U_mod, 
+                    module_id, **aheaders):
+    """ Write tod in fits file. 
+
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    az : float array
+        Azimuth angles.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_I_mod : float array
+        TOD I for each module.
+    tod_Q_mod : float array
+        TOD Q for each module.
+    tod_U_mod : float array 
+        TOD U for each module.
+    module_id : int or int array
+        Module indices
+    **aheaders : dictionary
+        Additional headers.
+    """
+    log = set_logger(mp.current_process().name)
     cols = [fits.Column(name='UT',  format='D', array=ut ),
-            fits.Column(name='AZ',  format='E', array=az ),
+            fits.Column(name='az',  format='E', array=az ),
             fits.Column(name='DEC', format='E', array=dec),
             fits.Column(name='RA',  format='E', array=ra )]
 
@@ -825,7 +1069,7 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra, tod_I_mod, tod_Q_mod, tod_U_mod, nmo
     for key, value in aheaders.items():
         header[key] = value
         
-    for n, tod_I, tod_Q, tod_U in zip(nmod, tod_I_mod, tod_Q_mod, tod_U_mod):
+    for n, tod_I, tod_Q, tod_U in zip(module_id, tod_I_mod, tod_Q_mod, tod_U_mod):
         cols.append(fits.Column(name='TOD_I_mod%d' % (n), 
                     format='{}E'.format(np.prod(np.shape(tod_I)[1:])), array=tod_I))
         cols.append(fits.Column(name='TOD_Q_mod%d' % (n), 
@@ -845,8 +1089,23 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra, tod_I_mod, tod_Q_mod, tod_U_mod, nmo
     return
 
 
-def wr_tod2fits_noise(fname, ut, noise, nmodin, **aheaders):
-    log = setLogger(mp.current_process().name)
+def wr_tod2fits_noise(fname, ut, noise, module_id, **aheaders):
+    """ Write noise tod in fits file. 
+
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    noise : float array
+        Noise tod.
+    module_id : int or int array
+        Module indices
+    **aheaders : dictionary
+        Additional headers.
+    """
+    log = set_logger(mp.current_process().name)
     header = fits.Header()
     for key, value in aheaders.items():
         header[key] = value
@@ -868,9 +1127,10 @@ def wr_tod2fits_noise(fname, ut, noise, nmodin, **aheaders):
 
 
 def scp_file(local_path, remote_path, remove=False):
-    log = setLogger(mp.current_process().name)
+    """ Copy the files to criar. """
+    log = set_logger(mp.current_process().name)
     log.info('Copying file {} to criar.'.format(local_path))
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
     ssh_client=paramiko.client.SSHClient()
     ssh_client.load_system_host_keys()
     ssh_client.connect('criar')
@@ -891,17 +1151,46 @@ def scp_file(local_path, remote_path, remove=False):
     return
 
 
-def func_parallel_tod(
-        t1, t2, fsample, mapname='cmb_rseed42.fits', 
-        nmodin=None, fprefix='GBtod', outpath='.', 
-        nside_hitmap=False, transferFile=False
-    ):
+def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits', 
+                      module_id=None, fprefix='GBtod', outpath='.', 
+                      nside_hitmap=False, transferFile=False):
+    """ Function for a parallelization of the tod simulation.
+    
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+    mapname : string
+        The filename of the input map.
+        Default is 'cmb-rseed42.fits'.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nside_hitmap : int
+        Nside of the N-hit maps. 
+        If False, N-hit maps are not going to be calculated. 
+        Default is False.
+    transferFile : bool
+        If True, the data files are transferred to criar automatically.
+        Default is False.
+    """
 
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
     map_in = hp.read_map(mapname, field=(0,1,2), verbose=False)
 
     res = sim_tod_focalplane_module(t1, t2, map_in=map_in, fsample=fsample, 
-                                    nmod=nmodin, nside_hitmap=nside_hitmap)
+                                    module_id=module_id, nside_hitmap=nside_hitmap)
 
     ut, el, az, dec, ra, tod_I, tod_Q, tod_U, nmodout, hitmap = res 
 
@@ -965,16 +1254,54 @@ def func_parallel_tod(
     return
 
 
-def func_parallel_noise(
-        t1, t2, dtsec=600, fsample=10, 
-        wnl=1, fknee=1, alpha=1, rseed=0, 
-        nmodin=None, fprefix='GBtod_noise', outpath='.', transferFile=False
-    ):
+def func_parallel_noise(t1, t2, dtsec=600, fsample=10, 
+                        wnl=1, fknee=1, alpha=1, rseed=0, 
+                        module_id=None, fprefix='GBtod_noise', 
+                        outpath='.', transferFile=False):
+    """ Function for a parallelization of the noise simulation.
+    
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 10.
+    wnl : float
+        White noise level. (The unit is not deterined yet.)
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise.
+        Default is 1.
+    rseed : int
+        Random seed to be used in white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    transferFile : bool
+        If True, the data files are transferred to criar automatically.
+        Default is False.
+    """
 
-    log = setLogger(mp.current_process().name)
+    log = set_logger(mp.current_process().name)
 
-    if nmodin == None:
-        nmodin = list(range(6))
+    if module_id == None:
+        module_id = list(range(6))
 
     log.info('Making time stamps')
     st = Time(t1, format='isot', scale='utc')
@@ -996,8 +1323,8 @@ def func_parallel_noise(
                 'ISOT0': (t1, 'Observation start time'), 
                 'ISOT1': (t2, 'Observation end time'),
                 'FSAMPLE': (fsample, 'Sampling frequency (Hz)'),
-                'NMODULES': (str(list(map(int, nmodin)))[1:-1], 'Used modules'),
-                #'NMODPIXS': (str(nmodpixs)[1:-1], 'Number of pixels in each module'),
+                'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
                }
     
     if (socket.gethostname() == 'criar'):
@@ -1011,7 +1338,7 @@ def func_parallel_noise(
         if not(os.path.isdir(opath)):
             os.mkdir(opath)
         ofname = os.path.join(opath, fname)
-        wr_tod2fits_noise(ofname, ut, noise, nmodin, **aheaders)
+        wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
     else:
         opath = outpath
         if not(os.path.isdir(opath)):
@@ -1024,7 +1351,7 @@ def func_parallel_noise(
             os.mkdir(opath)
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
-        wr_tod2fits_noise(ofname, ut, noise, nmodin, **aheaders)
+        wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
 
@@ -1034,10 +1361,44 @@ def func_parallel_noise(
 def GBsim_hpc_parallel_time(
         t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
         dtsec=600, fsample=10, mapname='cmb_rseed42.fits', 
-        nmodin=None, fprefix='GBtod_CMB', outpath=None,
-        nside_hitmap=False, nproc=8
-    ):
-    log = setLogger(mp.current_process().name)
+        module_id=None, fprefix='GBtod_CMB', outpath=None,
+        nside_hitmap=False, nproc=8):
+    """ GroundBIRD simulation module for TOD. It is parallelized 
+    over the time. 
+
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2 in second.
+        Default is 600.
+    fsample : float
+        Sampling frequency in sps.
+    mapname : string
+        The filename of the input map.
+        Default is 'cmb-rseed42.fits'.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_CMB'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nside_hitmap : int
+        Nside of the N-hit maps. 
+        If False, N-hit maps are not going to be calculated. 
+        Default is False.
+    nproc : int
+        Maximum number of processes.
+        Default is 8.
+    """
+    log = set_logger(mp.current_process().name)
 
     st = t1
     et = t2
@@ -1065,7 +1426,7 @@ def GBsim_hpc_parallel_time(
         t2_ = (st + (i+1)*dt).isot
         log.info('t1={}, t2={}'.format(t1_, t2_))
         proc = mp.Process(target=func_parallel_tod, 
-                          args=(t1_, t2_, fsample, mapname, nmodin, 
+                          args=(t1_, t2_, fsample, mapname, module_id, 
                                 fprefix, outpath, nside_hitmap))
         procs.append(proc)
 
@@ -1094,10 +1455,57 @@ def GBsim_noise(
         t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
         dtsec=600, fsample=10, 
         wnl=1, fknee=1, alpha=1, rseed=0,
-        nmodin=None, fprefix='GBtod_noise', outpath=None, nproc=8
-    ):
+        module_id=None, fprefix='GBtod_noise', outpath='.', nproc=8):
 
-    log = setLogger(mp.current_process().name)
+    """ GroundBIRD simulation module for noise. It is parallelized 
+    over the time.
+
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2 in second.
+        Default is 600.
+    fsample : float
+        Sampling frequency in sps.
+    wnl : float
+        White noise level.
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise spectrum in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise. 
+        Default is 1.
+    rseed : int
+        Random seed to be used for white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nproc : int
+        Maximum number of processes.
+        Default is 8.
+    """
+    log = set_logger(mp.current_process().name)
+    """ 
+    Parameters
+    ----------
+    Returns
+    -------
+    """
+
+    log = set_logger(mp.current_process().name)
 
     st = t1
     et = t2
@@ -1125,7 +1533,7 @@ def GBsim_noise(
         log.info('t1={}, t2={}'.format(t1, t2))
         proc = mp.Process(target=func_parallel_noise,
                           args=(t1, t2, dtsec, fsample, wnl, fknee, alpha, 
-                                rseeds[i], nmodin, fprefix, outpath))
+                                rseeds[i], module_id, fprefix, outpath))
         procs.append(proc)
 
     log.debug(procs)
@@ -1150,6 +1558,7 @@ def GBsim_noise(
 
 
 def test_nhit():
+    """ Test module for nhit """
     t1 = '2018-12-04T12:00:00.0' 
     t2 = '2018-12-04T12:10:00.0' # +1 min 
     #t2 = '2018-12-04T12:10:00.0' # +10 min 
@@ -1161,7 +1570,8 @@ def test_nhit():
 
 
 def test_tod():
-    log = setLogger(funcname())
+    """ Test module for TOD """
+    log = set_logger(function_name())
     t1 = '2018-12-04T12:00:00.0'
     t2 = '2018-12-04T12:01:00.0' # +1 min 
     #t2 = '2018-12-04T12:10:00.0' # +10 min 
@@ -1185,10 +1595,4 @@ def test_tod():
     #plt.show()
 
     return
-
-
-if __name__=='__main__':
-    #paratest()
-    GBsim_hpc_parallel_time()
-    #GBsim_every10min_hpc()
 

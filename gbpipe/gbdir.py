@@ -1,9 +1,8 @@
-#
-# This file is part of GBpipe.
-#
-# GBpipe is a package for GroundBIRD data processing.
-#
-# It provides observation direction calculation functions.
+""" This file is part of GBpipe.
+
+GBpipe is a package for GroundBIRD data processing.
+It provides observation direction calculation functions.
+"""
 
 import healpy as hp
 import numpy  as np
@@ -15,20 +14,50 @@ from astropy.time import Time
 DIRNAME = os.path.dirname(__file__)
 sys.path.append(DIRNAME)
 
-from gbparam import GBparam 
-from utils import setLogger, funcname, processname
+from .gbparam import GBparam 
+from .utils import set_logger
 
 if sys.version_info < (3,):
     range = xrange
 
 
-def unixtime2JD(unixtime): # unixtime (float)
+def unixtime2jd(unixtime): 
+    """ Convert unixtime to Julian day using astropy.time.
+
+    Parameters
+    ----------
+    unixtime : float 
+        Unixtime.
+
+    Returns 
+    -------
+    jd : float
+        Julian day.
+    """
     t = Time(unixtime, format='unix') 
-    t.format('jd')
-    return t.value
+    jd = t.format('jd')
+    return jd
 
 
-def unixtime2LST(unixtime, lon=GBparam.lon, deg=True):
+def unixtime2lst(unixtime, lon=GBparam.lon, deg=True):
+    """ Convert unixtime to local sidereal time using astropy.time.
+
+    Parameters
+    ----------
+    unixtime : float 
+        Unixtime.
+    lon : float 
+        Longitude in degree.
+        Default is GBparam.lon.
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+
+    Returns 
+    -------
+    lst : float
+        Local sidereal time in degree or radian.
+    """
     t = Time(unixtime, format='unix')
     
     if (deg==True):
@@ -39,26 +68,80 @@ def unixtime2LST(unixtime, lon=GBparam.lon, deg=True):
     return lst
 
 
-def JD2LST(jd, lon=GBparam.lon, deg=True):
+def jd2lst(jd, lon=GBparam.lon, deg=True):
+    """ Convert Julian day to local sidereal time using astropy.time.
+
+    Parameters
+    ----------
+    jd : float 
+        Julian day.
+    lon : float 
+        Longitude in degree.
+        Default is GBparam.lon.
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+
+    Returns 
+    -------
+    lst : float
+        Local sidereal time in degree or radian.
+    """
     t = Time(jd, format='jd')
     if (deg==True):
-        return t.sidereal_time('apparent', longitude=str(lon)+'d').degree
+        lst = t.sidereal_time('apparent', longitude=str(lon)+'d').degree
     else: #returns LST in hourangle
-        return t.sidereal_time('apparent', longitude=str(lon)+'d').value
+        lst = t.sidereal_time('apparent', longitude=str(lon)+'d').value
+
+    return lst
 
 
-def encoder2ang(enc, enc_south=GBparam.encoder_south): # encoder value to angle
-    deg = 360.0/8192*(np.array(enc) - enc_south)
-    if (not hasattr(deg, '__iter__')):
-        deg = [deg]
+def encoder2ang(enc, enc_south=GBparam.encoder_south, deg=True): 
+    """ Calculate the azimuth angle of the telescope from the encoder value.
 
-    np.place(deg, deg<0, deg+360)
+    Parameters
+    ----------
+    enc : int or int array
+        Encoder value. 
+    enc_south : int
+        Encoder value for the South.
+        Default is GBparam.encoder_south.
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
 
-    return deg
+    Returns
+    -------
+    ang : float or float array
+        Azimuth angles of the telescope in degree or radian.
+    """
+    ang = 360.0/8192*(np.array(enc) - enc_south)
+
+    #np.place(ang, ang<0, ang+360)
+    ang[ang<0] += 360
+    if not deg:
+        ang = np.radians(ang) 
+
+    return ang
 
 
 def euler_ZYZ(angles, deg=True): 
-    """ Calculates rotation matrix according to the wikipedia convention (extrinsic z-y-z) """
+    """ Calculates rotation matrix according to the wikipedia convention 
+    (extrinsic z-y-z).
+
+    Parameters
+    ----------
+    angles : array of (3 * float)
+        Euler angles (alpha, beta, gamma). 
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+
+    Returns
+    -------
+    R : array of 3x3 matrices
+        Rotation matrices given the Euler angles. 
+    """
     if (deg):
         phi   = np.array(np.radians(angles[2])) # alpha
         theta = np.array(np.radians(angles[1])) # beta
@@ -100,21 +183,44 @@ def euler_ZYZ(angles, deg=True):
     return R
 
 
-def x_coord(angles):
-    """ Get x (theta) axis given a direction for parallactic angle calculation """
-    theta= angles[0]
-    phi  = angles[1]
+def theta_coord(angles):
+    """ Get theta axis given a direction for parallactic angle calculation.
+
+    Parameters
+    ----------
+    angles : float array 
+        (theta, phi) angles or a sequence of (theta, phi).
+
+    Returns
+    -------
+    theta_axis : vector or vector array
+        theta axis or axes given a direction or directions.
+    """
+    theta = angles[0]
+    phi = angles[1]
     cost = np.cos(theta)
     sint = np.sin(theta)
     cosp = np.cos(phi)
     sinp = np.sin(phi)
-    x_ = np.array([cost * cosp, cost * sinp, -sint])
-    #y_ = np.array([-sinp, cosp, 0.0])
-    return x_ #, y_
+    theta_axis = np.array([cost * cosp, cost * sinp, -sint])
+    phi_axis = np.array([-sinp, cosp, 0.0])
+    return theta_axis #, phi_axis
 
 
 def angle_from_meridian_2D(r, v):
-    """
+    """ Calculate the angle from the meridian.
+
+    Parameters
+    ----------
+    r : vector or vector array
+        Directional vectors
+    v : vector or vector array
+        vectors to be tested. 
+
+    Returns
+    -------
+    psi : float or floar array
+        angles from the meridians.
     """
     r=np.array(r)
     v=np.array(v)
@@ -153,26 +259,42 @@ def angle_from_meridian_2D(r, v):
  
 
 def angle_from_meridian(r, v):
+    """ Calculate the angle from the meridian.
+
+    Parameters
+    ----------
+    r : vector array
+        Directional vectors
+    v : vector array
+        vectors to be tested. 
+
+    Returns
+    -------
+    psi : float or floar array
+        angles from the meridians.
     """
-    """
-    log = setLogger()
-    r=np.array(r) # r: (nsample, 3, ndetector)
-    v=np.array(v) # v: (nsample, 3, ndetector)
+    log = set_logger()
+    ## r: (nsample, 3, ndetector)
+    r=np.array(r) 
+    ## v: (nsample, 3, ndetector)
+    v=np.array(v) 
     nsample, _, ndetector = r.shape
     shape = (nsample, ndetector)
-    r=r.transpose(0, 2, 1) # r: (nsample, ndetector, 3)
-    v=v.transpose(0, 2, 1) # v: (nsample, ndetector, 3)
+    ## r: (nsample, ndetector, 3)
+    r=r.transpose(0, 2, 1) 
+    ## v: (nsample, ndetector, 3)
+    v=v.transpose(0, 2, 1) 
 
     theta, phi = hp.vec2ang(r)
-
     theta = theta.reshape(shape)
     phi = phi.reshape(shape)
 
-    # e_theta: (3, nsample, ndetector)
+    ## e_theta: (3, nsample, ndetector) = meridian 
     e_theta = np.array((np.cos(theta)*np.cos(phi), 
                         np.cos(theta)*np.sin(phi),
-                        -np.sin(theta)))        # meridian 
-    e_theta = e_theta.transpose(1, 2, 0) # e_theta: (nsample, ndetector, 3) 
+                        -np.sin(theta)))        
+    ## e_theta: (nsample, ndetector, 3) 
+    e_theta = e_theta.transpose(1, 2, 0) 
 
     log.debug('r.shape: {}'.format(r.shape))
     log.debug('theta.shape: {}'.format(theta.shape))
@@ -180,23 +302,40 @@ def angle_from_meridian(r, v):
     log.debug('e_theta.shape: {}'.format(e_theta.shape))
     log.debug('v.shape: {}'.format(v.shape))
 
+    ## ecv: (nsample, ndetector, 3)
     ecv = np.cross(e_theta, v, axisa=2, axisb=2, axisc=2)
 
-    log.debug('ecv.shape = {}'.format(ecv.shape)) # ecv: (nsample, ndetector, 3)
-    
-    edv = np.einsum('ijk,ijk->ij', e_theta, v) # edv: (nsample, ndetector)
-    edv[np.where(edv > 1.0)] = 1.0
-    sign = np.sign(np.einsum('ijk,ijk->ij', r, ecv)) # sign: (nsample, ndetector)
+    log.debug('ecv.shape = {}'.format(ecv.shape)) 
 
-    psi = np.arccos(edv) * sign # psi: (nsample, ndetector)
+    ## edv: (nsample, ndetector)
+    edv = np.einsum('ijk,ijk->ij', e_theta, v) 
+    edv[np.where(edv > 1.0)] = 1.0
+    ## sign: (nsample, ndetector)
+    sign = np.sign(np.einsum('ijk,ijk->ij', r, ecv)) 
+
+    # psi: (nsample, ndetector)
+    psi = np.arccos(edv) * sign 
 
     return psi 
 
 
 def psi2vec(v_arr, psi):
-    """
-    Convert the psi angle to a vector. 
-    The psi angle is defined w.r.t. the local theta vector in spherical coordinate. 
+    """ Convert the psi angles to polarization vectors. 
+    The psi angle is defined w.r.t. the local theta vector 
+    in spherical coordinate. 
+
+    Parameters
+    ----------
+    v_arr : vector array
+        Directional vectors
+
+    psi : float array
+        psi angles defined in spherical coordinate. 
+
+    Returns
+    -------
+    p : vector array
+        polarization vectors.
     """
     r = np.array(v_arr)
     psi = np.array(psi)
@@ -220,7 +359,21 @@ def psi2vec(v_arr, psi):
 def psi2vec_xp(v_arr, psi):
     """
     Convert the psi angle to a vector. 
-    The psi angle is defined w.r.t. the x_p vector in LightTools convention.
+    The psi angle is defined w.r.t. the x_p vector 
+    in LightTools convention.
+
+    Parameters
+    ----------
+    v_arr : vector array
+        Directional vectors
+
+    psi : float array
+        psi angles defined w.r.t. the x_p vector.
+
+    Returns
+    -------
+    p : vector array
+        polarization vectors.
     """
     r = np.array(v_arr) # r: (ndetector * 3)
     psi = np.array(psi) # psi : (ndetector)
@@ -242,21 +395,30 @@ def psi2vec_xp(v_arr, psi):
      
 def parallactic_angle(ze, deg=True, coord=['C', 'G'], healpy=True): 
     """ 
-    Calculates angle between theta axes given a direction in Equatorial and Galactic coordinates.
-    *numpy.einsum()* functions in some products are replaced with numpy.tensordot() to improve speed. 
-
+    Calculates angle between theta axes in two coordinate systems 
+    given a direction.
+    
     Parameters
     ----------
-    ze  : float or float array
+    ze  : vector or an array of vectors
         Direction vector in equatorial coordinate.
     deg : bool
-        If it is set 'True', the output angle is in degree. 
-        Otherwise, the output angle is in radian (default: True).
+        If it is set True, the output angle is in degree. 
+        Otherwise, the output angle is in radian 
+        Default is True.
+    coord : sequence of characters
+        Coordinate systems. The first is source and the other is 
+        destination. 
+        Default is ['C', 'G'].
+    healpy : bool
+        If True, *healpy.Rotator.angle_ref* module will be used 
+        for this calculation. Otherwise, direct calculation.
+        Default is True.
     
     Returns
     --------
     psi_par : float or float array
-        parallactic angle for the given direction
+        Parallactic angles for the given direction
     """
     R_coord = hp.Rotator(coord=coord)
     ze = np.array(ze)
@@ -267,11 +429,16 @@ def parallactic_angle(ze, deg=True, coord=['C', 'G'], healpy=True):
     else:
         # old version
         if (hasattr(ze[0], '__iter__')):
-            zg = np.tensordot(R_coord.mat, ze, axes=(1,1)).T # direction in Gal.
-            xp = xp_coord(hp.vec2ang(ze)).T # theta direction in Equ. theta_p
-            xe = np.tensordot(R_coord.mat, xp, axes=(1,1)).T # theta_p in Gal. theta_e
-            xg = xp_coord(hp.vec2ang(zg)).T # theta_g
-            xcx = np.cross(xe, xg) # angle theta_e to theta_g
+            # direction in Gal.
+            zg = np.tensordot(R_coord.mat, ze, axes=(1,1)).T 
+            # theta direction in Equ. theta_p
+            xp = theta_coord(hp.vec2ang(ze)).T 
+            # theta_p in Gal. theta_e
+            xe = np.tensordot(R_coord.mat, xp, axes=(1,1)).T 
+            # theta_g
+            xg = theta_coord(hp.vec2ang(zg)).T 
+            # angle theta_e to theta_g
+            xcx = np.cross(xe, xg)
             xdx = np.einsum('ij,ij->i', xe, xg)
             xdx[xdx > 1] = 1.0
             xdx[xdx < -1] = -1.0
@@ -279,9 +446,9 @@ def parallactic_angle(ze, deg=True, coord=['C', 'G'], healpy=True):
             psi_par = np.arccos(xdx) * sign
         else:
             zg = R_coord(ze) 
-            xp = xp_coord(hp.vec2ang(ze)).flatten()
+            xp = theta_coord(hp.vec2ang(ze)).flatten()
             xe = R_coord(xp)
-            xg = xp_coord(hp.vec2ang(zg)).flatten()
+            xg = theta_coord(hp.vec2ang(zg)).flatten()
             xcx = np.cross(xe, xg) 
             xdx = np.dot(xe, xg) 
             if xdx > 1: xdx = 1 
@@ -292,7 +459,31 @@ def parallactic_angle(ze, deg=True, coord=['C', 'G'], healpy=True):
     return psi_par
 
 
-def rotate_map(m, coord, pixel=False):
+def coord_transform_map(m, coord, pixel=False):
+    """ Coordinate transformation of a healpix map given coordinate systems
+    using *healpy.Rotator.rotate_map_pixel* and 
+    *healpy.Rotator.rotate_map_alms*. In general, rotation using alms is 
+    more precise. For the partial maps, *healpy.Rotator.rotate_map_pixel*
+    should be used.
+
+    Parameters
+    ----------
+    m : array
+        An healpix map to be transformed. 
+    coord : sequence of characters
+        Coordinate systems. The first is source and the other is 
+        destination. 
+        Default is ['C', 'G'].
+    pixel : bool
+        If True, it use *healpy.Rotator.rotate_map_pixel* module. 
+        Otherwise, *healpy.Rotator.rotate_map_alms*. 
+        Default is False.
+
+    Returns
+    -------
+    mp : array
+        Transformed healpix map.
+    """
     R = hp.Rotator(coord=coord)
     if pixel:
         mp = R.rotate_map_pixel(m)
@@ -303,12 +494,30 @@ def rotate_map(m, coord, pixel=False):
 
 
 def equ2gal(m_equ, healpy=True, pixel=False):
+    """ Transform the coordinate of a healpix map in Equatorial 
+    coordinate to Galactic coordinate. 
+
+    Parameters
+    ----------
+    m_equ : array 
+        A healpix map or TQU maps in Equatorial coordinate. 
+    healpy : bool
+        If True, healpy routines are used. 
+        Otherwise, direct calculation.
+        Default is True.
+    pixel : bool
+        If True, it use *healpy.Rotator.rotate_map_pixel* module. 
+        Otherwise, *healpy.Rotator.rotate_map_alms*. 
+        This is ignored when healpy is False. 
+        Default is False.
+
+    Returns
+    -------
+    m_gal : array
+        A healpix map or TQU maps in Galactic coordinate. 
+    """
     if healpy:
-        R = hp.Rotator(coord=['C', 'G'])
-        if pixel:
-            m_gal = R.rotate_map_pixel(m_equ)
-        else:
-            m_gal = R.rotate_map_alms(m_gal)
+        m_gal = coord_transform_map(m_equ, coord=['C', 'G'], pixel=pixel)
     else:
         ## old version
         npix = len(m_equ)
@@ -330,34 +539,31 @@ def equ2gal(m_equ, healpy=True, pixel=False):
     return m_gal
 
 
-def equ2gal_pol(m_equ):
-    T_equ = m_equ[0]
-    Q_equ = m_equ[1]
-    U_equ = m_equ[2]
-
-    T_gal = equ2gal(T_equ)
-    Q_gal = equ2gal(Q_equ)
-    U_gal = equ2gal(U_equ)
-
-    npix = len(T_gal)
-    nside = hp.npix2nside(npix)
-
-    pix = np.arange(npix)
-    v_gal = hp.pix2vec(nside, pix)
-    psi_p = parallactic_angle(v_gal.T)
-
-    m_gal = [T_gal, Q_gal, U_gal]
-
-    return m_gal
-
-
 def gal2equ(m_gal, healpy=True, pixel=False):
+    """ Transform the coordinate of a healpix map in Galactic
+    coordinate to Equatorial coordinate. 
+
+    Parameters
+    ----------
+    m_gal : array
+        A healpix map or TQU maps in Galactic coordinate. 
+    healpy : bool
+        If True, healpy routines are used. 
+        Otherwise, direct calculation.
+        Default is True.
+    pixel : bool
+        If True, it use *healpy.Rotator.rotate_map_pixel* module. 
+        Otherwise, *healpy.Rotator.rotate_map_alms*. 
+        This is ignored when healpy is False. 
+        Default is False.
+
+    Returns
+    -------
+    m_equ : array 
+        A healpix map or TQU maps in Equatorial coordinate. 
+    """
     if healpy:
-        R = hp.Rotator(coord=['G', 'C'])
-        if pixel:
-            m_equ = R.rotate_map_pixel(m_gal)
-        else:
-            m_equ = R.rotate_map_alms(m_gal)
+        m_equ = coord_transform_map(m_gal, coord=['G', 'C'], pixel=pixel)
     else:
         ## old version
         npix = len(m_gal)
@@ -379,7 +585,56 @@ def gal2equ(m_gal, healpy=True, pixel=False):
     return m_equ
 
 
+def equ2gal_pol(m_equ):
+    """ Transform the coordinate of healpix map in Equatorial 
+    coordinate to Galactic coordinate by direct calculations.
+    Using *equ2gal* with *healpy=True* is recommended. 
+
+    Parameters
+    ----------
+    m_equ : array 
+        Healpix TQU maps in Equatorial coordinate. 
+
+    Returns
+    -------
+    m_gal : array
+        Healpix TQU maps in Galactic coordinate. 
+    """
+    T_equ = m_equ[0]
+    Q_equ = m_equ[1]
+    U_equ = m_equ[2]
+
+    T_gal = equ2gal(T_equ)
+    Q_gal = equ2gal(Q_equ)
+    U_gal = equ2gal(U_equ)
+
+    npix = len(T_gal)
+    nside = hp.npix2nside(npix)
+
+    pix = np.arange(npix)
+    v_gal = hp.pix2vec(nside, pix)
+    psi_p = parallactic_angle(v_gal.T)
+
+    m_gal = [T_gal, Q_gal, U_gal]
+
+    return m_gal
+
+
 def gal2equ_pol(m_gal):
+    """ Transform the coordinate of healpix map in Galactic 
+    coordinate to Equatorial coordinate by direct calculations.
+    Using *gal2equ* with *healpy=True* is recommended. 
+
+    Parameters
+    ----------
+    m_gal : array
+        Healpix TQU maps in Galactic coordinate. 
+
+    Returns
+    -------
+    m_equ : array 
+        Healpix TQU maps in Equatorial coordinate. 
+    """
     T_gal = m_gal[0]
     Q_gal = m_gal[1]
     U_gal = m_gal[2]
@@ -398,25 +653,53 @@ def gal2equ_pol(m_gal):
     Q = Q_equ * np.cos(2*psi_p) - U_equ * np.sin(2*psi_p)
     U = Q_equ * np.sin(2*psi_p) + U_equ * np.cos(2*psi_p)
 
-    m_gal = [T_equ, Q, U]
+    m_equ = [T_equ, Q, U]
 
-    return m_gal
+    return m_equ
 
 
-def Rot_matrix_healpix(EL=GBparam.EL, AZ=0, LAT=GBparam.lat, LST=0, PSI=0, coord='C'): # angles in degree by default
-    """Calculates the rotation matrix of GroundBIRD with healpix routine.
+def Rot_matrix_healpix(el=GBparam.el, az=0, 
+                       lat=GBparam.lat, lst=0, 
+                       psi=0, coord='C'): 
+    """Calculates the rotation matrix of telescope by healpy routines.
+    All the angles are in degree. The input angles cannot be arrays.
+
     Parameters
     ----------
+    el : float or float array
+        Elevation of the telescope in Horizontal coordinate, in degree. 
+        el = 90 - (tilt angle).
+        Default is GBparam.El.
+    az : float or float array
+        Azimuth angle in Horizontal coordinate.
+        Default is 0.
+    lat : float or float array
+        Latitude of observation site.
+        Default is GBparam.lat.
+    lst : float or float array
+        Right ascension (or hour angle) in Local Sidereal Time in degree.
+        Default is 0.
+    psi : float or float array
+        Roll angles of the telescope.
+        Default is 0.
+    coord : 'G', 'C' or 'E'
+        Result coordinate system. 'G' for Galactic coordinate, 
+        'C' for Equatorial coordinate, or 'H' for Horizontal coordinate. 
+        Default is 'C'.
+
     Returns
     -------
+    rmat : a 3x3 matrix or an array of 3x3 matrices
+        Rotation matrices.     
     """
-    
-    # rotation matrix calculation (default : Equatorial coordinate 'C')
-    r1 = hp.Rotator( (PSI, 90.-EL, 180.-AZ), eulertype='Y', deg=True) # rotation of GB w.r.t. ground
+
+    ## rotation of GB w.r.t. ground
+    r1 = hp.Rotator((psi, 90.-el, 180.-az), eulertype='Y', deg=True) 
     if (coord == 'H'):
         rmat = r1.mat
     else: 
-        r2 = hp.Rotator( (0, 90.-LAT, LST), eulertype='Y', deg=True) # horizontal to equatorial coordinate. 
+        ## Horizontal to Equatorial coordinate. 
+        r2 = hp.Rotator((0, 90.-lat, lst), eulertype='Y', deg=True) 
         rmat = np.matmul(r2.mat, r1.mat)
         if (coord == 'G'):
             R_E2G = hp.Rotator(coord=['C', 'G'])
@@ -425,29 +708,34 @@ def Rot_matrix_healpix(EL=GBparam.EL, AZ=0, LAT=GBparam.lat, LST=0, PSI=0, coord
     return rmat
 
 
-def Rot_matrix(EL=GBparam.EL, AZ=0, LAT=GBparam.lat, LST=0, PSI=0, coord='C'): # angles in degree by default
+def Rot_matrix(el=GBparam.el, az=0, 
+               lat=GBparam.lat, lst=0, 
+               psi=0, coord='C'): 
     """Computes rotation matrix with euler_ZYZ routine.
+    All the angles are in degree and can be arrays. 
 
     Parameters
     ----------
-    EL : float or float array
-        Elevation in Horizontal coordinate. 
-        Default = GBparam.El
-    AZ : float or float array
+    el : float or float array
+        Elevation of the telescope in Horizontal coordinate, in degree. 
+        el = 90 - (tilt angle).
+        Default is GBparam.El.
+    az : float or float array
         Azimuth angle in Horizontal coordinate.
-        Default = 0
-    LAT : float or float array
+        Default is 0.
+    lat : float or float array
         Latitude of observation site.
-        Default = GBparam.lat
-    LST : float or float array
-        Right ascension (or hour angle) in Local Sidereal Time.
-        Default = 0
-    PSI : float or float array
-        Default = 0
+        Default is GBparam.lat.
+    lst : float or float array
+        Right ascension (or hour angle) in Local Sidereal Time in degree.
+        Default is 0.
+    psi : float or float array
+        Roll angles of the telescope.
+        Default is 0.
     coord : 'G', 'C' or 'E'
         Result coordinate system. 'G' for Galactic coordinate, 
-        'C' for Equatorial coordinate, or 'E' for Celestial coordinate. 
-        Default = 'C'
+        'C' for Equatorial coordinate, or 'H' for Horizontal coordinate. 
+        Default is 'C'.
 
     Returns
     -------
@@ -455,16 +743,16 @@ def Rot_matrix(EL=GBparam.EL, AZ=0, LAT=GBparam.lat, LST=0, PSI=0, coord='C'): #
         Rotation matrices.     
     """
 
-    EL = np.array(EL)
-    AZ = np.array(AZ)
-    LAT = np.array(LAT)
-    LST = np.array(LST)
+    el = np.array(el)
+    az = np.array(az)
+    lat = np.array(lat)
+    lst = np.array(lst)
 
-    r1 = euler_ZYZ((PSI, 90.-EL, 180.-AZ), deg=True)
+    r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True)
     if (coord =='H'):
         rmat = r1
     else:
-        r2 = euler_ZYZ((0, 90.-LAT, LST), deg=True)
+        r2 = euler_ZYZ((0, 90.-lat, lst), deg=True)
         rmat = np.matmul(r2, r1)
         if (coord == 'G'):
             R_E2G = hp.Rotator(coord=['C', 'G'])
@@ -479,18 +767,19 @@ def Rotate(v_arr, rmat=None):
 
     Parameters
     ----------
-    v_arr : a vector or vector array
+    v_arr : vector or vector array
         Vectors to be rotated
-    rmat : 
+    rmat : 3x3 matrices or array of them. 
         Rotation matrices. If None, it is calculated with 
         Rot_matrix() with default values.
-        Default = None
+        Default is None.
 
     Return
     ------
-
+    vp_arr : vector or vector array
+        Rotated vectors. 
     """
-    log = setLogger()
+    log = set_logger()
     if (rmat is None):
         rmat = Rot_matrix()
 
@@ -508,23 +797,28 @@ def Rotate(v_arr, rmat=None):
     return vp_arr 
 
 
-def dir_sky(v_arr):
-    rmat = Rot_matrix()
-    return Rotate(v_arr, rmat)
-    
-
-def dir_pol(v_arr):
-    rmat = Rot_matrix()
-    return Rotate(v_arr, rmat)
-
-
 def rmat2euler(rmat):
     """ returns euler angles (ZYZ convention) for the rotation matrix 
-    http://www.gregslabaugh.net/publications/euler.pdf"""
+    http://www.gregslabaugh.net/publications/euler.pdf.
+    
+    Parameters
+    ----------
+    rmat : 3x3 matrix or array of them
+        Rotational matrices.
+
+    Returns
+    -------
+    phi : float or float array
+        phi (alpha or yaw) angles from the rotation matrices.    
+    theta : float or float array
+        theta (beta or pitch) angles from the rotation matrices.    
+    psi : float or float array
+        psi (gamma or roll) angles from the rotation matrices.    
+    """
 
     theta = np.arctan2(np.sqrt(rmat[0,2]**2+rmat[1,2]**2), rmat[2,2])
     phi = -np.arctan2(rmat[1,2], rmat[0,2])
     psi = np.arctan2(rmat[2,1], rmat[2,0])
 
-    return (phi, theta, psi)
+    return phi, theta, psi
 
