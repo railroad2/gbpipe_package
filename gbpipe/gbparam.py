@@ -5,6 +5,7 @@ GBparam is a class storing parameters of GroundBIRD analysis.
 from __future__ import print_function
 import os.path
 import sys
+
 if (sys.version_info > (3,)):
     import configparser as cparser
 else:
@@ -71,7 +72,7 @@ class GBparam:
     pixinfo = []
 
     log = set_logger('GBparam')
-    def __init__(self, fname=os.path.join(DIRNAME,'default.ini')):
+    def __init__(self, fname=os.path.join(DIRNAME,'data/default.ini')):
         """ __init__ method. The parameters and pixel information are loaded.  
 
         Parameters
@@ -130,7 +131,7 @@ class GBparam:
         self.rot_speed      = float(self.get_option(cp, 'GB', 'rot_speed'))
         self.fsample        = int(self.get_option(cp, 'GB', 'fsample'))
         self.encoder_south  = int(self.get_option(cp, 'GB', 'encoder_south'))
-        self.fname_pixel    = os.path.abspath(self.get_option(cp, 'GB', 'fname_pixel'))
+        self.fname_pixel    = str(self.get_option(cp, 'GB', 'fname_pixel')).replace('MODULE_PATH', DIRNAME)
         self.omega_earth    = float(eval(self.get_option(cp, 'others', 'omega_earth')))
 
         self.EL             = 90. - self.tilt

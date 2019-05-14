@@ -272,3 +272,50 @@ def process_name():
     """ Returns the name of the current process."""
     return mp.current_process().name
 
+
+def qu2Ippsi(Q, U):
+    """ Convert Q/U maps to intensity and psi maps.
+    
+    Parameters
+    ----------
+    Q : float array
+        Map of stokes parameter Q
+    U : float array
+        Map of stokes parameter Q
+    
+    Returns
+    -------
+    Ip : float array
+        Polarization intensity map.
+    psi : float array
+        Map of psi angles. 
+    """
+    Ip = np.sqrt(Q**2 + U**2)
+    psi = 0.5 * np.arctan2(U, Q)
+
+    return Ip, psi
+
+
+def Ippsi2qu(Ip, psi):
+    """ Convert intensity and psi maps to QU maps
+
+    Parameters
+    ----------
+    Ip : float array
+        Polarization intensity map.
+    psi : float array
+        Map of psi angles. 
+    
+    Returns
+    -------
+    Q : float array
+        Map of stokes parameter Q
+    U : float array
+        Map of stokes parameter Q
+    """
+    Q = Ip * np.cos(2*psi)
+    U = Ip * np.sin(2*psi)
+
+    return Q, U
+
+

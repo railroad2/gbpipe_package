@@ -1,4 +1,4 @@
-import ..gbparam
+import gbparam
 
 def test_gbparam():
     par = gbparam.GBparam()

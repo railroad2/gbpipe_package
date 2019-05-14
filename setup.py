@@ -13,6 +13,7 @@ setup(
     author = 'Kyungmin Lee',
     author_email = 'kmlee@hep.korea.ac.kr',
     packages = find_packages(),
+    include_package_data = True,
     install_requires = install_requires,
     dependency_links = dependency_links,
     entry_points = {},

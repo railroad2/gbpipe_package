@@ -1,5 +1,6 @@
+import os
+import sys
 import time
-import sys, os
 import socket
 import datetime
 
@@ -20,10 +21,15 @@ DIRNAME = os.path.dirname(__file__)
 sys.path.append(DIRNAME)
 sys.path.append(DIRNAME+'../')
 
-from gbpipe import gbdir
-from gbpipe.utils import dl2cl, cl2dl
-from gbpipe.gbparam import GBparam
-from gbpipe.utils import set_logger, function_name, today
+from . import gbdir
+from .utils import dl2cl, cl2dl
+from .gbparam import GBparam
+from .utils import set_logger, function_name, today, qu2Ippsi
+
+#from gbpipe import gbdir
+#from gbpipe.utils import dl2cl, cl2dl
+#from gbpipe.gbparam import GBparam
+#from gbpipe.utils import set_logger, function_name, today, qu2Ippsi
 
 
 def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
@@ -515,7 +521,8 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     #pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat)
 
     #log.info ('Calculating polarization directions')
-    psi_obs = np.zeros(len(v_arr)) #gbdir.angle_from_meridian_2D(v_obs, pv_obs)
+    #gbdir.angle_from_meridian_2D(v_obs, pv_obs)
+    psi_obs = np.zeros(len(v_arr)) 
 
 
     #########################################
@@ -531,6 +538,7 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     I_obs = []
     Q_obs = []
     U_obs = []
+
 
     for vi in v_obs:
         x = vi[0]
@@ -779,12 +787,12 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         Declination.
     ra : float array
         Right ascension.
-    tod_I_mod : float array
-        Simulated tod I for given modules.
-    tod_Q_mod : float array
-        Simulated tod I for given modules.
-    tod_U_mod : float array
-        Simulated tod I for given modules.
+    tod_Ix_mod : float array
+        Simulated tod Ix for given modules.
+    tod_Iy_mod : float array
+        Simulated tod Iy for given modules.
+    tod_psi_mod : float array
+        Simulated tod psi for given modules.
     module_id_set : int or int array
         Indices of the used modules.
     hitmap : float array
@@ -928,42 +936,67 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
     log.info('getting npix from vectors ')
 
+    ## QU maps to Intensity & psi maps
+    Ip_src, psi_src = qu2Ippsi(map_in[1], map_in[2]) 
+
     ## observed pixels, pix_obs: (nsample * ndetector)
     pix_obs = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
+
+    ## observed pixels for N-hit map, pix_hit: (nsample * ndetector)
     if nside_hitmap:
-        # observed pixels for N-hit map, pix_hit: (nsample * ndetector)
         pix_hit = hp.vec2pix(nside_hitmap, 
                              v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
+
     log.info('getting tods')
 
     del(v_obs); 
 
-    # I/Q/U_obs: (nsample * ndetector)
-    I_obs = map_in[0][pix_obs] 
-    Q_obs = map_in[1][pix_obs]
-    U_obs = map_in[2][pix_obs]
+    ## I/Q/U_obs: (nsample * ndetector)
+    #I_obs = map_in[0][pix_obs] 
+    #Q_obs = map_in[1][pix_obs]
+    #U_obs = map_in[2][pix_obs]
+    #tod_I = np.array(I_obs) + 2.7255
+    #tod_Q = np.array(Q_obs*np.cos(2*psi_obs) - U_obs*np.sin(2*psi_obs))
+    #tod_U = np.array(Q_obs*np.sin(2*psi_obs) + U_obs*np.cos(2*psi_obs))
+    #del(I_obs); del(Q_obs); del(U_obs); del(psi_obs)
 
-    tod_I = np.array(I_obs)
-    tod_Q = np.array(Q_obs*np.cos(2*psi_obs) - U_obs*np.sin(2*psi_obs))
-    tod_U = np.array(Q_obs*np.sin(2*psi_obs) + U_obs*np.cos(2*psi_obs))
+    #tod_I_mod = []
+    #tod_Q_mod = []
+    #tod_U_mod = []
+    #pix_mod = [] 
+    #n0 = 0
 
-    del(I_obs); del(Q_obs); del(U_obs); del(psi_obs)
+    #for n in np.add.accumulate(modpix_cnt):
+    #    ## tod_I/Q/U_mod: (module_cnt * nsample * ndetector)
+    #    tod_I_mod.append(tod_I[:, n0:n])  
+    #    tod_Q_mod.append(tod_Q[:, n0:n])
+    #    tod_U_mod.append(tod_U[:, n0:n])
+    #    if nside_hitmap:
+    #        pix_mod.append(pix_hit[:, n0:n])
+    #    n0 = n
 
-    tod_I_mod = []
-    tod_Q_mod = []
-    tod_U_mod = []
-    pix_mod = [] 
+    ## I/Q/U_obs: (nsample * ndetector) 
+    tod_I = map_in[0][pix_obs] + 2.7255
+    tod_Ip = Ip_src[pix_obs]
+    tod_psi = psi_src[pix_obs]
+
+    tod_Ix = 1.0 / np.sqrt(2) * tod_I + tod_Ip * np.cos(tod_psi - psi_obs) 
+    tod_Iy = 1.0 / np.sqrt(2) * tod_I + tod_Ip * np.sin(tod_psi - psi_obs) 
+    del(tod_I); del(tod_Ip); del(psi_obs)
+
+    tod_Ix_mod = []
+    tod_Iy_mod = []
+    tod_psi_mod = []
     n0 = 0
 
     for n in np.add.accumulate(modpix_cnt):
-        #tod_I/Q/U_mod: (module_cnt * nsample * ndetector)
-        tod_I_mod.append(tod_I[:, n0:n])  
-        tod_Q_mod.append(tod_Q[:, n0:n])
-        tod_U_mod.append(tod_U[:, n0:n])
+        ## tod_Ix/Iy/psi_mod: (module_cnt * nsample * ndetector)
+        tod_Ix_mod.append(tod_Ix[:, n0:n])  
+        tod_Iy_mod.append(tod_Iy[:, n0:n])
+        tod_psi_mod.append(tod_psi[:, n0:n])
         if nside_hitmap:
             pix_mod.append(pix_hit[:, n0:n])
         n0 = n
-
 
     hitmap = []
     if nside_hitmap:
@@ -975,8 +1008,12 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
     log.info('TOD simulation end')
 
+    #return ut, el, az, dec, ra, \
+    #       tod_I_mod, tod_Q_mod, tod_U_mod, \
+    #       module_id_set, hitmap
+
     return ut, el, az, dec, ra, \
-           tod_I_mod, tod_Q_mod, tod_U_mod, \
+           tod_Ix_mod, tod_Iy_mod, tod_psi_mod, \
            module_id_set, hitmap
 
 
@@ -1031,7 +1068,7 @@ def wr_tod2fits(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     return
                 
 
-def wr_tod2fits_mod(fname, ut, az, dec, ra, 
+def wr_tod2fits_mod_TQU(fname, ut, az, dec, ra, 
                     tod_I_mod, tod_Q_mod, tod_U_mod, 
                     module_id, **aheaders):
     """ Write tod in fits file. 
@@ -1076,6 +1113,64 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
                     format='{}E'.format(np.prod(np.shape(tod_Q)[1:])), array=tod_Q))
         cols.append(fits.Column(name='TOD_U_mod%d' % (n), 
                     format='{}E'.format(np.prod(np.shape(tod_U)[1:])), array=tod_U))
+
+    hdu = fits.BinTableHDU.from_columns(cols, header)
+
+    try: 
+        hdu.writeto(fname)
+        log.info('{} has been created.'.format(fname))
+    except OSError:
+        hdu.writeto(fname, overwrite=True)
+        log.warning('{} has been overwritten.'.format(fname))
+
+    return
+
+
+def wr_tod2fits_mod(fname, ut, az, dec, ra, 
+                    tod_Ix_mod, tod_Iy_mod, tod_psi_mod, 
+                    module_id, **aheaders):
+    """ Write tod in fits file. 
+
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    az : float array
+        Azimuth angles.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    tod_Ix_mod : float array
+        TOD Ix for each module.
+    tod_Iy_mod : float array
+        TOD Iy for each module.
+    tod_psi_mod : float array 
+        TOD psi for each module.
+    module_id : int or int array
+        Module indices
+    **aheaders : dictionary
+        Additional headers.
+    """
+    log = set_logger(mp.current_process().name)
+    cols = [fits.Column(name='UT',  format='D', array=ut ),
+            fits.Column(name='az',  format='E', array=az ),
+            fits.Column(name='DEC', format='E', array=dec),
+            fits.Column(name='RA',  format='E', array=ra )]
+
+    header = fits.Header()
+    for key, value in aheaders.items():
+        header[key] = value
+        
+    for n, tod_Ix, tod_Iy, tod_psi in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod):
+        cols.append(fits.Column(name='TOD_Ix_mod%d' % (n), 
+                    format='{}E'.format(np.prod(np.shape(tod_Ix)[1:])), array=tod_Ix))
+        cols.append(fits.Column(name='TOD_Iy_mod%d' % (n), 
+                    format='{}E'.format(np.prod(np.shape(tod_Iy)[1:])), array=tod_Iy))
+        cols.append(fits.Column(name='TOD_psi_mod%d' % (n), 
+                    format='{}E'.format(np.prod(np.shape(tod_psi)[1:])), array=tod_psi))
 
     hdu = fits.BinTableHDU.from_columns(cols, header)
 

@@ -4,10 +4,12 @@ GBpipe is a package for GroundBIRD data processing.
 It provides observation direction calculation functions.
 """
 
-import healpy as hp
-import numpy  as np
-import os, sys
+import os
+import sys
 import time
+
+import numpy as np
+import healpy as hp
 import astropy
 from astropy.time import Time
 
