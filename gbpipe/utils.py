@@ -84,7 +84,8 @@ def set_logger(name=mp.current_process().name, display=True,
             ch.setFormatter(f)
 
         if (filename is None):
-            filename = './tmp.log'
+            t = datetime.datetime.now().replace(microsecond=0).isoformat()
+            filename = './log_name_{}.log'.format(t)
 
         fh = logging.FileHandler(filename)
         fh.setFormatter(f)

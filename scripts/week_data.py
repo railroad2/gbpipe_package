@@ -7,7 +7,7 @@ from gbpipe import gbsim
 
 def doit():
     t1 = "2019-05-01T00:00:00"
-    t2 = "2019-05-08T00:00:00"
+    t2 = "2019-05-01T00:30:00"
     dtsec = 600
     fsample = 13
 
@@ -15,19 +15,19 @@ def doit():
     fg145name = "/home/klee_ext/kmlee/maps/fg145_equ.fits"
     fg220name = "/home/klee_ext/kmlee/maps/fg225_equ.fits"
     dt = datetime.datetime.now()
-    nproc = 7
-    nside_hitmap = None
+    nproc = 8
+    nside_hitmap = 64
 
-    outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_1week".format(dt.strftime("%Y-%m-%d"))
-
-    gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=cmbname, module_id=0,
-        fprefix="GBtod_cmb220", outpath=outpath,
-        nside_hitmap=nside_hitmap, nproc=nproc)
+    outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_test".format(dt.strftime("%Y-%m-%d"))
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
         fsample=fsample, mapname=cmbname, module_id=(1, 2, 3, 4, 5, 6), 
         fprefix="GBtod_cmb145", outpath=outpath, 
+        nside_hitmap=nside_hitmap, nproc=nproc)
+
+    gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
+        fsample=fsample, mapname=cmbname, module_id=0,
+        fprefix="GBtod_cmb220", outpath=outpath,
         nside_hitmap=nside_hitmap, nproc=nproc)
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,

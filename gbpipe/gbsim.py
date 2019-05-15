@@ -987,6 +987,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     tod_Ix_mod = []
     tod_Iy_mod = []
     tod_psi_mod = []
+    pix_mod = [] 
     n0 = 0
 
     for n in np.add.accumulate(modpix_cnt):
@@ -1335,15 +1336,19 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     if nside_hitmap:
         hpath = opath + '_hitmap'
+
         if not(os.path.isdir(hpath)):
             os.mkdir(hpath)
+
         hfname = os.path.join(hpath, '{}_hitmap_{}_{}.fits'.format(fprefix, t1, t2))
         cnames = ['hitmap_'+str(i) for i in nmodout]
+
         if (os.path.isfile(hfname)):
             log.warning('{} has been overwritten.'.format(hfname))
             hp.write_map(hfname, hitmap, column_names=cnames, overwrite=True)
         else:
             hp.write_map(hfname, hitmap, column_names=cnames, overwrite=False)
+
         log.info('N-hit map is written in {}.'.format(hfname))
 
     return
