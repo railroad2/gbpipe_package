@@ -26,11 +26,6 @@ from .utils import dl2cl, cl2dl
 from .gbparam import GBparam
 from .utils import set_logger, function_name, today, qu2Ippsi
 
-#from gbpipe import gbdir
-#from gbpipe.utils import dl2cl, cl2dl
-#from gbpipe.gbparam import GBparam
-#from gbpipe.utils import set_logger, function_name, today, qu2Ippsi
-
 
 def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
     """ Generates noise tod which has power spectrum of 
@@ -1306,26 +1301,38 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     if (socket.gethostname() == 'criar'):
         opath = outpath
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, t1[:10])
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, fprefix)
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         ofname = os.path.join(opath, fname)
         wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_I, tod_Q, tod_U, nmodout, **aheaders)
     else:
         opath = outpath 
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, t1[:10])
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, fprefix)
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
 
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
@@ -1337,8 +1344,10 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
     if nside_hitmap:
         hpath = opath + '_hitmap'
 
-        if not(os.path.isdir(hpath)):
+        try:
             os.mkdir(hpath)
+        except OSError:
+            log.warning('The path {} exists.'.format(hpath))
 
         hfname = os.path.join(hpath, '{}_hitmap_{}_{}.fits'.format(fprefix, t1, t2))
         cnames = ['hitmap_'+str(i) for i in nmodout]
@@ -1429,26 +1438,38 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
     
     if (socket.gethostname() == 'criar'):
         opath = outpath 
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, t1[:10])
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, fprefix)
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         ofname = os.path.join(opath, fname)
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
     else:
         opath = outpath
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, t1[:10])
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         opath = os.path.join(opath, fprefix)
-        if not(os.path.isdir(opath)):
+        try:
             os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
