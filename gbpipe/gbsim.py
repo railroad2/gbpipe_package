@@ -24,7 +24,7 @@ sys.path.append(DIRNAME+'../')
 from . import gbdir
 from .utils import dl2cl, cl2dl
 from .gbparam import GBparam
-from .utils import set_logger, function_name, today, qu2Ippsi
+from .utils import set_logger, function_name, today, qu2ippsi
 
 
 def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
@@ -932,7 +932,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     log.info('getting npix from vectors ')
 
     ## QU maps to Intensity & psi maps
-    Ip_src, psi_src = qu2Ippsi(map_in[1], map_in[2]) 
+    Ip_src, psi_src = qu2ippsi(map_in[1], map_in[2]) 
 
     ## observed pixels, pix_obs: (nsample * ndetector)
     pix_obs = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
@@ -975,8 +975,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     tod_Ip = Ip_src[pix_obs]
     tod_psi = psi_src[pix_obs]
 
-    tod_Ix = 1.0 / np.sqrt(2) * tod_I + tod_Ip * np.cos(tod_psi - psi_obs) 
-    tod_Iy = 1.0 / np.sqrt(2) * tod_I + tod_Ip * np.sin(tod_psi - psi_obs) 
+    tod_Ix = 0.5 * tod_I + tod_Ip * np.cos(tod_psi - psi_obs)**2
+    tod_Iy = 0.5 * tod_I + tod_Ip * np.sin(tod_psi - psi_obs)**2 
     del(tod_I); del(tod_Ip); del(psi_obs)
 
     tod_Ix_mod = []
@@ -1619,14 +1619,6 @@ def GBsim_noise(
         Default is 8.
     """
     log = set_logger(mp.current_process().name)
-    """ 
-    Parameters
-    ----------
-    Returns
-    -------
-    """
-
-    log = set_logger(mp.current_process().name)
 
     st = t1
     et = t2
@@ -1682,10 +1674,7 @@ def test_nhit():
     """ Test module for nhit """
     t1 = '2018-12-04T12:00:00.0' 
     t2 = '2018-12-04T12:10:00.0' # +1 min 
-    #t2 = '2018-12-04T12:10:00.0' # +10 min 
-    #t2 = '2018-12-04T18:00:00.0' # +6 hr
-    #t2 = '2018-12-05T12:00:00.0' # +24 hr
-    
+
     #sim_obs_singlepix(t1, t2, fsample=10)
     sim_obs_focalplane(t1, t2, fsample=10)
 
@@ -1716,4 +1705,5 @@ def test_tod():
     #plt.show()
 
     return
+
 

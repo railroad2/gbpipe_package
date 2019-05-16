@@ -12,6 +12,7 @@ import numpy as np
 import healpy as hp
 import astropy
 from astropy.time import Time
+from scipy.interpolate import interp1d
 
 DIRNAME = os.path.dirname(__file__)
 sys.path.append(DIRNAME)
@@ -66,6 +67,38 @@ def unixtime2lst(unixtime, lon=GBparam.lon, deg=True):
         lst = t.sidereal_time('apparent', longitude=str(lon)+'d').degree
     else: #returns LST in hourangle
         lst = t.sidereal_time('apparent', longitude=str(lon)+'d').value
+
+    return lst
+
+
+def unixtime2lst_1s(unixtime, lon=GBparam.lon, deg=True):
+    """ Convert unixtime to local sidereal time using astropy.time.
+    Assuming that the rotation speed of the Earth is constant in 1s, 
+    interpolating the local sidereal time.
+
+    Parameters
+    ----------
+    unixtime : float 
+        Unixtime.
+    lon : float 
+        Longitude in degree.
+        Default is GBparam.lon.
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+
+    Returns 
+    -------
+    lst : float
+        Local sidereal time in degree or radian.
+    """
+    ut_min = min(unixtime)
+    ut_max = max(unixtime)+1.0
+
+    ut_1s = ut_min + np.arange(0, int(ut_max-ut_min), 1.0)
+    lst_1s = unixtime2lst(ut_1s, lon=lon, deg=deg) 
+    f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
+    lst = f(unixtime)
 
     return lst
 
@@ -239,15 +272,15 @@ def angle_from_meridian_2D(r, v):
     v = np.array(v)
     if hasattr(r[0], '__iter__') and hasattr(v, '__iter__'):
         edv = np.einsum('ij,ij->i', e_theta, v)
-        edv[np.where(edv > 1)] = 1.0
+        edv[edv > 1] = 1.0
         sign = np.sign(np.einsum('ij,ij->i', r, ecv))
     elif hasattr(r[0], '__iter__'):
         edv = np.einsum('ij,j->i', e_theta, v)
-        edv[np.where(edv > 1)] = 1.0
+        edv[edv > 1] = 1.0
         sign = np.sign(np.einsum('ij,j->i', r, ecv))
     elif hasattr(v[0], '__iter__'):
         edv = np.einsum('j,ij->i', e_theta, v)
-        edv[np.where(edv > 1)] = 1.0
+        edv[edv > 1] = 1.0
         sign = np.sign(np.einsum('j,ij->i', r, ecv))
     else:
         edv = np.dot(e_theta, v)
@@ -311,7 +344,7 @@ def angle_from_meridian(r, v):
 
     ## edv: (nsample, ndetector)
     edv = np.einsum('ijk,ijk->ij', e_theta, v) 
-    edv[np.where(edv > 1.0)] = 1.0
+    edv[edv > 1.0] = 1.0
     ## sign: (nsample, ndetector)
     sign = np.sign(np.einsum('ijk,ijk->ij', r, ecv)) 
 

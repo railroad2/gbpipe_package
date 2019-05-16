@@ -15,7 +15,7 @@ def doit():
     fg145name = "/home/klee_ext/kmlee/maps/fg145_equ.fits"
     fg220name = "/home/klee_ext/kmlee/maps/fg225_equ.fits"
     dt = datetime.datetime.now()
-    nproc = 8
+    nproc = 16
     nside_hitmap = 64
 
     outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_test".format(dt.strftime("%Y-%m-%d"))

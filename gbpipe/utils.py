@@ -84,7 +84,7 @@ def set_logger(name=mp.current_process().name, display=True,
             ch.setFormatter(f)
 
         if (filename is None):
-            t = datetime.datetime.now().replace(microsecond=0).isoformat()
+            t = datetime.datetime.now().date().isoformat()
             filename = './log_name_{}.log'.format(t)
 
         fh = logging.FileHandler(filename)
@@ -199,6 +199,7 @@ def dl2cl(dls):
             cls = np.transpose(cls) 
     return cls
 
+
 def cl2dl(cls):
     """ Convert the angular spectrum C_l to D_l.
     D_l = C_l * l * (l+1) / 2 / pi
@@ -233,6 +234,7 @@ def cl2dl(cls):
             dls = np.transpose(dls) 
 
     return dls
+
 
 def variation_cl(cls):
     """ Variation of angular spectrum C_l
@@ -274,7 +276,7 @@ def process_name():
     return mp.current_process().name
 
 
-def qu2Ippsi(Q, U):
+def qu2ippsi(Q, U):
     """ Convert Q/U maps to intensity and psi maps.
     
     Parameters
@@ -297,7 +299,7 @@ def qu2Ippsi(Q, U):
     return Ip, psi
 
 
-def Ippsi2qu(Ip, psi):
+def ippsi2qu(Ip, psi):
     """ Convert intensity and psi maps to QU maps
 
     Parameters
