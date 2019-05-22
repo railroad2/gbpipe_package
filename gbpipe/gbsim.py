@@ -1043,7 +1043,7 @@ def wr_tod2fits(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     log = set_logger(mp.current_process().name)
     hdu = fits.BinTableHDU.from_columns([
         fits.Column(name='UT',    format='D', array=ut,  dim='{}'.format('')),
-        fits.Column(name='az',    format='E', array=az,  dim='{}'.format('')),
+        fits.Column(name='AZ',    format='E', array=az,  dim='{}'.format('')),
         fits.Column(name='DEC',   format='E', array=dec, dim='{}'.format('')),
         fits.Column(name='RA',    format='E', array=ra,  dim='{}'.format('')),
         fits.Column(name='TOD_I', format='{}E'.format(np.prod(np.shape(tod_I)[1:])),
@@ -1094,7 +1094,7 @@ def wr_tod2fits_mod_TQU(fname, ut, az, dec, ra,
     """
     log = set_logger(mp.current_process().name)
     cols = [fits.Column(name='UT',  format='D', array=ut ),
-            fits.Column(name='az',  format='E', array=az ),
+            fits.Column(name='AZ',  format='E', array=az ),
             fits.Column(name='DEC', format='E', array=dec),
             fits.Column(name='RA',  format='E', array=ra )]
 
@@ -1104,11 +1104,14 @@ def wr_tod2fits_mod_TQU(fname, ut, az, dec, ra,
         
     for n, tod_I, tod_Q, tod_U in zip(module_id, tod_I_mod, tod_Q_mod, tod_U_mod):
         cols.append(fits.Column(name='TOD_I_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_I)[1:])), array=tod_I))
+                        format='{}E'.format(np.prod(np.shape(tod_I)[1:])), 
+                        array=tod_I))
         cols.append(fits.Column(name='TOD_Q_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_Q)[1:])), array=tod_Q))
+                        format='{}E'.format(np.prod(np.shape(tod_Q)[1:])), 
+                        array=tod_Q))
         cols.append(fits.Column(name='TOD_U_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_U)[1:])), array=tod_U))
+                        format='{}E'.format(np.prod(np.shape(tod_U)[1:])), 
+                        array=tod_U))
 
     hdu = fits.BinTableHDU.from_columns(cols, header)
 
@@ -1152,7 +1155,7 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
     """
     log = set_logger(mp.current_process().name)
     cols = [fits.Column(name='UT',  format='D', array=ut ),
-            fits.Column(name='az',  format='E', array=az ),
+            fits.Column(name='AZ',  format='E', array=az ),
             fits.Column(name='DEC', format='E', array=dec),
             fits.Column(name='RA',  format='E', array=ra )]
 
@@ -1161,12 +1164,15 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
         header[key] = value
         
     for n, tod_Ix, tod_Iy, tod_psi in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod):
-        cols.append(fits.Column(name='TOD_Ix_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_Ix)[1:])), array=tod_Ix))
-        cols.append(fits.Column(name='TOD_Iy_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_Iy)[1:])), array=tod_Iy))
-        cols.append(fits.Column(name='TOD_psi_mod%d' % (n), 
-                    format='{}E'.format(np.prod(np.shape(tod_psi)[1:])), array=tod_psi))
+        cols.append(fits.Column(name='TOD_Ix_mod_%d' % (n), 
+                        format='{}E'.format(np.prod(np.shape(tod_Ix)[1:])), 
+                        array=tod_Ix))
+        cols.append(fits.Column(name='TOD_Iy_mod_%d' % (n), 
+                        format='{}E'.format(np.prod(np.shape(tod_Iy)[1:])), 
+                        array=tod_Iy))
+        cols.append(fits.Column(name='TOD_psi_mod_%d' % (n), 
+                        format='{}E'.format(np.prod(np.shape(tod_psi)[1:])), 
+                        array=tod_psi))
 
     hdu = fits.BinTableHDU.from_columns(cols, header)
 
