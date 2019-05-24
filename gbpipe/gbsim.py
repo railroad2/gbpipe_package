@@ -27,7 +27,7 @@ from .gbparam import GBparam
 from .utils import set_logger, function_name, today, qu2ippsi
 
 
-def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
+def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
 
@@ -52,6 +52,11 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
     -------
     n_1f : float array
         1/f noise. Real part of inverse fft of the spectrum.
+    freq : float array
+        frequency of psd (optional)
+    s_1f : float array
+        analytic power spectral density (optional)
+         
     """ 
     log = set_logger(function_name())
     
@@ -70,7 +75,12 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0):
 
     n_1f = np.fft.ifft(s_1f).real
 
-    return n_1f
+    if return_psd:
+        res = [n_1f, (freq, s_1f)] 
+    else:
+        res = n_1f
+
+    return res
 
 
 def sim_obs_singlepix(t1, t2, fsample=1000): 
@@ -788,6 +798,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         Simulated tod Iy for given modules.
     tod_psi_mod : float array
         Simulated tod psi for given modules.
+    tod_pix_mod : float array
+        Observed sky pixel 
     module_id_set : int or int array
         Indices of the used modules.
     hitmap : float array
@@ -865,8 +877,6 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         module_id_set = module_id
 
     ## considering pixels in modules
-    modpix = []
-    modpix_cnt = []
     modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id_set))
     modpix = sum(modpix_arr, [])
     modpix_cnt = list(map(len, modpix_arr))
@@ -939,42 +949,19 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
     ## observed pixels for N-hit map, pix_hit: (nsample * ndetector)
     if nside_hitmap:
-        pix_hit = hp.vec2pix(nside_hitmap, 
-                             v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
+        pix_hit = hp.vec2pix(nside_hitmap, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
 
     log.info('getting tods')
 
     del(v_obs); 
 
-    ## I/Q/U_obs: (nsample * ndetector)
-    #I_obs = map_in[0][pix_obs] 
-    #Q_obs = map_in[1][pix_obs]
-    #U_obs = map_in[2][pix_obs]
-    #tod_I = np.array(I_obs) + 2.7255
-    #tod_Q = np.array(Q_obs*np.cos(2*psi_obs) - U_obs*np.sin(2*psi_obs))
-    #tod_U = np.array(Q_obs*np.sin(2*psi_obs) + U_obs*np.cos(2*psi_obs))
-    #del(I_obs); del(Q_obs); del(U_obs); del(psi_obs)
-
-    #tod_I_mod = []
-    #tod_Q_mod = []
-    #tod_U_mod = []
-    #pix_mod = [] 
-    #n0 = 0
-
-    #for n in np.add.accumulate(modpix_cnt):
-    #    ## tod_I/Q/U_mod: (module_cnt * nsample * ndetector)
-    #    tod_I_mod.append(tod_I[:, n0:n])  
-    #    tod_Q_mod.append(tod_Q[:, n0:n])
-    #    tod_U_mod.append(tod_U[:, n0:n])
-    #    if nside_hitmap:
-    #        pix_mod.append(pix_hit[:, n0:n])
-    #    n0 = n
-
     ## I/Q/U_obs: (nsample * ndetector) 
-    tod_I = map_in[0][pix_obs] + 2.7255
+    tod_I = map_in[0][pix_obs] 
     tod_Ip = Ip_src[pix_obs]
     tod_psi = psi_src[pix_obs]
 
+    #tod_Ix = 0.5 * tod_I + tod_Ip * np.cos(tod_psi - psi_obs)**2
+    #tod_Iy = 0.5 * tod_I + tod_Ip * np.sin(tod_psi - psi_obs)**2 
     tod_Ix = 0.5 * tod_I + tod_Ip * np.cos(tod_psi - psi_obs)**2
     tod_Iy = 0.5 * tod_I + tod_Ip * np.sin(tod_psi - psi_obs)**2 
     del(tod_I); del(tod_Ip); del(psi_obs)
@@ -982,7 +969,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     tod_Ix_mod = []
     tod_Iy_mod = []
     tod_psi_mod = []
-    pix_mod = [] 
+    tod_pix_mod = [] 
+    hit_pix_mod = []
     n0 = 0
 
     for n in np.add.accumulate(modpix_cnt):
@@ -990,13 +978,14 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         tod_Ix_mod.append(tod_Ix[:, n0:n])  
         tod_Iy_mod.append(tod_Iy[:, n0:n])
         tod_psi_mod.append(tod_psi[:, n0:n])
+        tod_pix_mod.append(pix_obs[:, n0:n])
         if nside_hitmap:
-            pix_mod.append(pix_hit[:, n0:n])
+            hit_pix_mod.append(pix_hit[:, n0:n])
         n0 = n
 
     hitmap = []
     if nside_hitmap:
-        for pixs in pix_mod:
+        for pixs in hit_pix_mod:
             hitmap_tmp = np.full(12*nside_hitmap**2, hp.UNSEEN)
             npix, nhit = np.unique(pixs, return_counts=True) 
             hitmap_tmp[npix] = nhit
@@ -1009,7 +998,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     #       module_id_set, hitmap
 
     return ut, el, az, dec, ra, \
-           tod_Ix_mod, tod_Iy_mod, tod_psi_mod, \
+           tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod,\
            module_id_set, hitmap
 
 
@@ -1126,7 +1115,7 @@ def wr_tod2fits_mod_TQU(fname, ut, az, dec, ra,
 
 
 def wr_tod2fits_mod(fname, ut, az, dec, ra, 
-                    tod_Ix_mod, tod_Iy_mod, tod_psi_mod, 
+                    tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod, 
                     module_id, **aheaders):
     """ Write tod in fits file. 
 
@@ -1148,6 +1137,8 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
         TOD Iy for each module.
     tod_psi_mod : float array 
         TOD psi for each module.
+    tod_pix_mod : float array   
+        Observed sky pixel for each module
     module_id : int or int array
         Module indices
     **aheaders : dictionary
@@ -1163,16 +1154,19 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
     for key, value in aheaders.items():
         header[key] = value
         
-    for n, tod_Ix, tod_Iy, tod_psi in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod):
+    for n, tod_Ix, tod_Iy, tod_psi, tod_pix in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod):
         cols.append(fits.Column(name='TOD_Ix_mod_%d' % (n), 
-                        format='{}E'.format(np.prod(np.shape(tod_Ix)[1:])), 
+                        format='{}D'.format(np.prod(np.shape(tod_Ix)[1:])), 
                         array=tod_Ix))
         cols.append(fits.Column(name='TOD_Iy_mod_%d' % (n), 
-                        format='{}E'.format(np.prod(np.shape(tod_Iy)[1:])), 
+                        format='{}D'.format(np.prod(np.shape(tod_Iy)[1:])), 
                         array=tod_Iy))
         cols.append(fits.Column(name='TOD_psi_mod_%d' % (n), 
-                        format='{}E'.format(np.prod(np.shape(tod_psi)[1:])), 
+                        format='{}D'.format(np.prod(np.shape(tod_psi)[1:])), 
                         array=tod_psi))
+        cols.append(fits.Column(name='TOD_pix_mod_%d' % (n), 
+                        format='{}J'.format(np.prod(np.shape(tod_pix)[1:])), 
+                        array=tod_pix))
 
     hdu = fits.BinTableHDU.from_columns(cols, header)
 
@@ -1289,9 +1283,9 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
     res = sim_tod_focalplane_module(t1, t2, map_in=map_in, fsample=fsample, 
                                     module_id=module_id, nside_hitmap=nside_hitmap)
 
-    ut, el, az, dec, ra, tod_I, tod_Q, tod_U, nmodout, hitmap = res 
+    ut, el, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, hitmap = res 
 
-    nmodpixs = [np.shape(tod)[1] for tod in tod_I]
+    nmodpixs = [np.shape(tod)[1] for tod in tod_Ix]
 
     fname = '{}_{}_{}.fits'.format(fprefix, t1, t2)
     aheaders = {'FNAME'   : fname, 
@@ -1322,7 +1316,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         except OSError:
             log.warning('The path {} exists.'.format(opath))
         ofname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_I, tod_Q, tod_U, nmodout, **aheaders)
+        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
     else:
         opath = outpath 
         try:
@@ -1342,7 +1336,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_I, tod_Q, tod_U, nmodout, **aheaders)
+        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
 
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
