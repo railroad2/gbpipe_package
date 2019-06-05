@@ -66,7 +66,7 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
 
     s0 = np.fft.fft(n0)/l
     freq = np.fft.fftfreq(l, d=1./fsample)
-    freq[0] = freq[1]/100
+    freq[0] = freq[1]/1e3 #fsample
 
     s = 1 + (fknee/abs(freq))**alpha
     s[0] = s[1]
@@ -76,7 +76,7 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
     n_1f = np.fft.ifft(s_1f).real
 
     if return_psd:
-        res = [n_1f, (freq, s_1f)] 
+        res = [n_1f, (freq, s)] 
     else:
         res = n_1f
 

@@ -829,7 +829,7 @@ def Rot_matrix(el=GBparam.el, az=0,
     lat = np.array(lat)
     lst = np.array(lst)
 
-    r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True)
+    r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True) # horizontal coordinate - azimuth from the north.
     if (coord =='H'):
         rmat = r1
     else:
@@ -898,8 +898,8 @@ def rmat2euler(rmat):
     """
 
     theta = np.arctan2(np.sqrt(rmat[0,2]**2+rmat[1,2]**2), rmat[2,2])
-    phi = -np.arctan2(rmat[1,2], rmat[0,2])
-    psi = np.arctan2(rmat[2,1], rmat[2,0])
+    phi = np.arctan2(rmat[1,2], rmat[0,2])
+    psi = np.arctan2(rmat[2,1], -rmat[2,0])
 
     return phi, theta, psi
 
