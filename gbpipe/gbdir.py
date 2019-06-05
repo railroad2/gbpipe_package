@@ -227,8 +227,8 @@ def euler_ZYZ(angles, deg=True, new=False):
     else:
         phi, theta, psi = angles # alpha beta gamma
 
-    if (deg):
-        phi, theta, psi = np.degrees(phi, theta, psi)
+    if deg:
+        phi, theta, psi = np.degrees((phi, theta, psi))
 
     len_phi   = phi.size
     len_theta = theta.size
@@ -883,7 +883,7 @@ def Rotate(v_arr, rmat=None):
 
 
 def rmat2euler(rmat, deg=True):
-    """ returns euler angles (ZYZ convention) for the rotation matrix 
+    """ returns euler angles (ZYZ convention) for the rotation matrices.
     http://www.gregslabaugh.net/publications/euler.pdf.
     
     Parameters
@@ -917,5 +917,41 @@ def rmat2euler(rmat, deg=True):
 
     return phi, theta, psi
 
+
 def rmat2equatorial(rmat, deg=True):
-    ... 
+     """ returns angles in equatorial coordinate for the rotation matrices (ZYZ).
+    http://www.gregslabaugh.net/publications/euler.pdf.
+    
+    Parameters
+    ----------
+    rmat : 3x3 matrix or array of them
+        Rotational matrices.
+
+    Returns
+    -------
+    ra : float or float array
+        right ascension in equatorial coordinate.  
+    dec : float or float array
+        declination in equatorial coordinate. 
+    psi : float or float array
+        psi (gamma or roll) angles.
+    """
+
+    if len(np.array(rmat).shape) == 2:
+        dec = np.arctan2(np.sqrt(rmat[0,2]**2+rmat[1,2]**2), rmat[2,2])
+        ra = np.arctan2(rmat[1,2], rmat[0,2])
+        psi = np.arctan2(rmat[2,1], -rmat[2,0])
+    elif len(np.array(rmat).shape) == 3:
+        dec = np.arctan2(np.sqrt(rmat[:,0,2]**2+rmat[:,1,2]**2), rmat[:,2,2])
+        ra = np.arctan2(rmat[:,1,2], rmat[:,0,2])
+        psi = np.arctan2(rmat[:,2,1], -rmat[:,2,0])
+    else:
+        print('Invalid input matrix. Input should be 3x3 matrix or array of 3x3 matrices.')
+
+    dec = np.pi/2 - dec
+        
+    if deg:
+        phi, theta, psi = np.degrees((phi, theta, psi))
+
+    return ra, dec, psi
+
