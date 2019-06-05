@@ -200,7 +200,7 @@ def encoder2ang(enc, enc_south=GBparam.encoder_south, deg=True):
     return ang
 
 
-def euler_ZYZ(angles, deg=True): 
+def euler_ZYZ(angles, deg=True, new=False): 
     """ Calculates rotation matrix according to the wikipedia convention 
     (extrinsic z-y-z).
 
@@ -211,20 +211,24 @@ def euler_ZYZ(angles, deg=True):
     deg : bool
         If True, the result will be in degrees, or radians otherwise. 
         Default is True.
+    new : bool
+        If True, the angles are in convention of euler_matrix_new 
+        of healpix, (gamma, beta, alpha), for a consistency with 
+        healpy Rotator class. Otherwise, (alpha, beta, gamma).
 
     Returns
     -------
     R : array of 3x3 matrices
         Rotation matrices given the Euler angles. 
     """
-    if (deg):
-        phi   = np.array(np.radians(angles[2])) # alpha
-        theta = np.array(np.radians(angles[1])) # beta
-        psi   = np.array(np.radians(angles[0])) # gamma 
+
+    if new:
+        psi, theta, phi = angles # gamma beta alpha
     else:
-        phi   = np.array(angles[2]) # alpha
-        theta = np.array(angles[1]) # beta
-        psi   = np.array(angles[0]) # gamma 
+        phi, theta, psi = angles # alpha beta gamma
+
+    if (deg):
+        phi, theta, psi = np.degrees(phi, theta, psi)
 
     len_phi   = phi.size
     len_theta = theta.size
@@ -829,11 +833,11 @@ def Rot_matrix(el=GBparam.el, az=0,
     lat = np.array(lat)
     lst = np.array(lst)
 
-    r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True) # horizontal coordinate - azimuth from the north.
+    r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True, new=True) # horizontal coordinate - azimuth from the north.
     if (coord =='H'):
         rmat = r1
     else:
-        r2 = euler_ZYZ((0, 90.-lat, lst), deg=True)
+        r2 = euler_ZYZ((0, 90.-lat, lst), deg=True, new=True)
         rmat = np.matmul(r2, r1)
         if (coord == 'G'):
             R_E2G = hp.Rotator(coord=['C', 'G'])
@@ -878,7 +882,7 @@ def Rotate(v_arr, rmat=None):
     return vp_arr 
 
 
-def rmat2euler(rmat):
+def rmat2euler(rmat, deg=True):
     """ returns euler angles (ZYZ convention) for the rotation matrix 
     http://www.gregslabaugh.net/publications/euler.pdf.
     
@@ -897,9 +901,21 @@ def rmat2euler(rmat):
         psi (gamma or roll) angles from the rotation matrices.    
     """
 
-    theta = np.arctan2(np.sqrt(rmat[0,2]**2+rmat[1,2]**2), rmat[2,2])
-    phi = np.arctan2(rmat[1,2], rmat[0,2])
-    psi = np.arctan2(rmat[2,1], -rmat[2,0])
+    if len(np.array(rmat).shape) == 2:
+        theta = np.arctan2(np.sqrt(rmat[0,2]**2+rmat[1,2]**2), rmat[2,2])
+        phi = np.arctan2(rmat[1,2], rmat[0,2])
+        psi = np.arctan2(rmat[2,1], -rmat[2,0])
+    elif len(np.array(rmat).shape) == 3:
+        theta = np.arctan2(np.sqrt(rmat[:,0,2]**2+rmat[:,1,2]**2), rmat[:,2,2])
+        phi = np.arctan2(rmat[:,1,2], rmat[:,0,2])
+        psi = np.arctan2(rmat[:,2,1], -rmat[:,2,0])
+    else:
+        print('Invalid input matrix. Input should be 3x3 matrix or array of 3x3 matrices.')
+
+    if deg:
+        phi, theta, psi = np.degrees((phi, theta, psi))
 
     return phi, theta, psi
 
+def rmat2equatorial(rmat, deg=True):
+    ... 
