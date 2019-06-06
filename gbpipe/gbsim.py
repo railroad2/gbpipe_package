@@ -792,6 +792,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         Declination.
     ra : float array
         Right ascension.
+    psi_equ : float array
+        psi angle of the GB center in equatorial coordinate.
     tod_Ix_mod : float array
         Simulated tod Ix for given modules.
     tod_Iy_mod : float array
@@ -908,7 +910,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     v_zen = gbdir.Rotate(v_arr=(0, 0, 1), rmat=rmat)
 
     ## longitude and latitude in degrees
-    ra, dec = hp.vec2ang(v_zen, lonlat=True) 
+    #ra, dec = hp.vec2ang(v_zen, lonlat=True) 
+    ra, dec, psi_equ = gbdir.rmat2equatorial(rmat, deg=True)
 
     ## polarization angles
     pangle = param.pixinfo['omtffr'][modpix]
@@ -997,7 +1000,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     #       tod_I_mod, tod_Q_mod, tod_U_mod, \
     #       module_id_set, hitmap
 
-    return ut, el, az, dec, ra, \
+    return ut, el, az, dec, ra, psi_equ, \
            tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod,\
            module_id_set, hitmap
 
@@ -1114,7 +1117,7 @@ def wr_tod2fits_mod_TQU(fname, ut, az, dec, ra,
     return
 
 
-def wr_tod2fits_mod(fname, ut, az, dec, ra, 
+def wr_tod2fits_mod(fname, ut, az, dec, ra, psi_equ, 
                     tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod, 
                     module_id, **aheaders):
     """ Write tod in fits file. 
@@ -1131,6 +1134,8 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
         Declination.
     ra : float array
         Right ascension.
+    psi_equ : float array
+        psi angle of the GB center
     tod_Ix_mod : float array
         TOD Ix for each module.
     tod_Iy_mod : float array
@@ -1145,10 +1150,11 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra,
         Additional headers.
     """
     log = set_logger(mp.current_process().name)
-    cols = [fits.Column(name='UT',  format='D', array=ut ),
-            fits.Column(name='AZ',  format='E', array=az ),
-            fits.Column(name='DEC', format='E', array=dec),
-            fits.Column(name='RA',  format='E', array=ra )]
+    cols = [fits.Column(name='UT',      format='D', array=ut ),
+            fits.Column(name='AZ',      format='E', array=az ),
+            fits.Column(name='DEC',     format='E', array=dec),
+            fits.Column(name='RA',      format='E', array=ra ),
+            fits.Column(name='PSI_EQU', format='E', array=psi_equ)]
 
     header = fits.Header()
     for key, value in aheaders.items():
@@ -1283,7 +1289,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
     res = sim_tod_focalplane_module(t1, t2, map_in=map_in, fsample=fsample, 
                                     module_id=module_id, nside_hitmap=nside_hitmap)
 
-    ut, el, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, hitmap = res 
+    ut, el, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, hitmap = res 
 
     nmodpixs = [np.shape(tod)[1] for tod in tod_Ix]
 
@@ -1316,7 +1322,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         except OSError:
             log.warning('The path {} exists.'.format(opath))
         ofname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
     else:
         opath = outpath 
         try:
@@ -1336,7 +1342,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
 
         if (transferFile):
             scp_file(ofname, dfname, remove=True)

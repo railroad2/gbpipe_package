@@ -702,7 +702,7 @@ def euler_ZYZ(angles, deg=True, new=False):
     angles : array of (3 * float)
         Euler angles (alpha, beta, gamma). 
     deg : bool
-        If True, the result will be in degrees, or radians otherwise. 
+        If True, the inputs are in degrees, or radians otherwise. 
         Default is True.
     new : bool
         If True, the angles are in convention of euler_matrix_new 
@@ -721,7 +721,10 @@ def euler_ZYZ(angles, deg=True, new=False):
         phi, theta, psi = angles # alpha beta gamma
 
     if deg:
-        phi, theta, psi = np.degrees((phi, theta, psi))
+        phi = np.radians(phi)
+        theta = np.radians(theta)
+        psi = np.radians(psi)
+
 
     len_phi   = phi.size
     len_theta = theta.size
@@ -844,6 +847,7 @@ def Rot_matrix(el=GBparam.el, az=0,
     az = np.array(az)
     lat = np.array(lat)
     lst = np.array(lst)
+    psi = np.array(psi)
 
     r1 = euler_ZYZ((psi, 90.-el, 180.-az), deg=True, new=True) # horizontal coordinate - azimuth from the north.
     if (coord =='H'):
@@ -1010,7 +1014,10 @@ def rmat2equatorial(rmat, deg=True):
     dec = np.pi/2 - dec
         
     if deg:
-        phi, theta, psi = np.degrees((phi, theta, psi))
+        ra = np.degrees(ra)
+        dec = np.degrees(dec)
+        psi = np.degrees(psi)
+
 
     return ra, dec, psi
 
