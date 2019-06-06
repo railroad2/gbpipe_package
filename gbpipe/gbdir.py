@@ -24,6 +24,7 @@ if sys.version_info < (3,):
     range = xrange
 
 
+## time conversions
 def unixtime2jd(unixtime): 
     """ Convert unixtime to Julian day using astropy.time.
 
@@ -171,6 +172,7 @@ def jd2lst(jd, lon=GBparam.lon, deg=True):
     return lst
 
 
+## encoder
 def encoder2ang(enc, enc_south=GBparam.encoder_south, deg=True): 
     """ Calculate the azimuth angle of the telescope from the encoder value.
 
@@ -200,68 +202,7 @@ def encoder2ang(enc, enc_south=GBparam.encoder_south, deg=True):
     return ang
 
 
-def euler_ZYZ(angles, deg=True, new=False): 
-    """ Calculates rotation matrix according to the wikipedia convention 
-    (extrinsic z-y-z).
-
-    Parameters
-    ----------
-    angles : array of (3 * float)
-        Euler angles (alpha, beta, gamma). 
-    deg : bool
-        If True, the result will be in degrees, or radians otherwise. 
-        Default is True.
-    new : bool
-        If True, the angles are in convention of euler_matrix_new 
-        of healpix, (gamma, beta, alpha), for a consistency with 
-        healpy Rotator class. Otherwise, (alpha, beta, gamma).
-
-    Returns
-    -------
-    R : array of 3x3 matrices
-        Rotation matrices given the Euler angles. 
-    """
-
-    if new:
-        psi, theta, phi = angles # gamma beta alpha
-    else:
-        phi, theta, psi = angles # alpha beta gamma
-
-    if deg:
-        phi, theta, psi = np.degrees((phi, theta, psi))
-
-    len_phi   = phi.size
-    len_theta = theta.size
-    len_psi   = psi.size
-    len_arr   = max((len_phi, len_theta, len_psi))
-    
-    if (len_arr > 1):
-        if (len_phi == 1):
-            phi = np.array([phi] * len_arr)
-        if (len_theta == 1):
-            theta = np.array([theta] * len_arr)
-        if (len_psi == 1): 
-            psi = np.array([psi] * len_arr)
-
-    c1 = np.cos(phi)
-    c2 = np.cos(theta)
-    c3 = np.cos(psi)
-    s1 = np.sin(phi)
-    s2 = np.sin(theta)
-    s3 = np.sin(psi)
-
-    Rtmp = np.array([[ c1*c2*c3-s1*s3,  -c3*s1-c1*c2*s3, c1*s2], 
-                     [ c1*s3+c2*c3*s1,   c1*c3-c2*s1*s3, s1*s2], 
-                     [-c3*s2,            s2*s3,          c2   ]])
-
-    if (len(Rtmp.shape)==3):
-        R = np.transpose(Rtmp, (2, 0, 1))
-    else:
-        R = Rtmp
-
-    return R
-
-
+## coordinate ang angle tools
 def theta_coord(angles):
     """ Get theta axis given a direction for parallactic angle calculation.
 
@@ -301,12 +242,14 @@ def angle_from_meridian_2D(r, v):
     psi : float or floar array
         angles from the meridians.
     """
+
     r=np.array(r)
     v=np.array(v)
     theta, phi = hp.vec2ang(r) 
     e_theta = np.array((np.cos(theta)*np.cos(phi), 
                         np.cos(theta)*np.sin(phi),
                         -np.sin(theta))).T
+
     if (len(e_theta) == 1):
         e_theta = e_theta.flatten()
 
@@ -357,11 +300,16 @@ def angle_from_meridian(r, v):
     psi : float or floar array
         angles from the meridians.
     """
+
     log = set_logger()
     ## r: (nsample, 3, ndetector)
     r=np.array(r) 
     ## v: (nsample, 3, ndetector)
     v=np.array(v) 
+
+    if len(r.shape) == 2:
+        return angle_from_meridian_2D(r, v)
+
     nsample, _, ndetector = r.shape
     shape = (nsample, ndetector)
     ## r: (nsample, ndetector, 3)
@@ -544,6 +492,7 @@ def parallactic_angle(ze, deg=True, coord=['C', 'G'], healpy=True):
     return psi_par
 
 
+## coordinate transformation between equ and gal
 def coord_transform_map(m, coord, pixel=False):
     """ Coordinate transformation of a healpix map given coordinate systems
     using *healpy.Rotator.rotate_map_pixel* and 
@@ -743,6 +692,69 @@ def gal2equ_pol(m_gal):
     return m_equ
 
 
+## Rotational matrices
+def euler_ZYZ(angles, deg=True, new=False): 
+    """ Calculates rotation matrix according to the wikipedia convention 
+    (extrinsic z-y-z).
+
+    Parameters
+    ----------
+    angles : array of (3 * float)
+        Euler angles (alpha, beta, gamma). 
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+    new : bool
+        If True, the angles are in convention of euler_matrix_new 
+        of healpix, (gamma, beta, alpha), for a consistency with 
+        healpy Rotator class. Otherwise, (alpha, beta, gamma).
+
+    Returns
+    -------
+    R : array of 3x3 matrices
+        Rotation matrices given the Euler angles. 
+    """
+
+    if new:
+        psi, theta, phi = angles # gamma beta alpha
+    else:
+        phi, theta, psi = angles # alpha beta gamma
+
+    if deg:
+        phi, theta, psi = np.degrees((phi, theta, psi))
+
+    len_phi   = phi.size
+    len_theta = theta.size
+    len_psi   = psi.size
+    len_arr   = max((len_phi, len_theta, len_psi))
+    
+    if (len_arr > 1):
+        if (len_phi == 1):
+            phi = np.array([phi] * len_arr)
+        if (len_theta == 1):
+            theta = np.array([theta] * len_arr)
+        if (len_psi == 1): 
+            psi = np.array([psi] * len_arr)
+
+    c1 = np.cos(phi)
+    c2 = np.cos(theta)
+    c3 = np.cos(psi)
+    s1 = np.sin(phi)
+    s2 = np.sin(theta)
+    s3 = np.sin(psi)
+
+    Rtmp = np.array([[ c1*c2*c3-s1*s3,  -c3*s1-c1*c2*s3, c1*s2], 
+                     [ c1*s3+c2*c3*s1,   c1*c3-c2*s1*s3, s1*s2], 
+                     [-c3*s2,            s2*s3,          c2   ]])
+
+    if (len(Rtmp.shape)==3):
+        R = np.transpose(Rtmp, (2, 0, 1))
+    else:
+        R = Rtmp
+
+    return R
+
+
 def Rot_matrix_healpix(el=GBparam.el, az=0, 
                        lat=GBparam.lat, lst=0, 
                        psi=0, coord='C'): 
@@ -817,7 +829,7 @@ def Rot_matrix(el=GBparam.el, az=0,
     psi : float or float array
         Roll angles of the telescope.
         Default is 0.
-    coord : 'G', 'C' or 'E'
+    coord : 'G', 'C' or 'H'
         Result coordinate system. 'G' for Galactic coordinate, 
         'C' for Equatorial coordinate, or 'H' for Horizontal coordinate. 
         Default is 'C'.
@@ -843,6 +855,52 @@ def Rot_matrix(el=GBparam.el, az=0,
             R_E2G = hp.Rotator(coord=['C', 'G'])
             r3mat = [R_E2G.mat]
             rmat = np.matmul(r3mat, rmat)
+
+    return rmat
+
+
+def Rot_matrix_equatorial(ra, dec, psi=0, coord='C', deg=True): 
+    """Computes rotation matrix with from ra, dec, and psi. 
+    All the angles can be arrays. 
+
+    Parameters
+    ----------
+    ra : float or float array
+        Right ascension.
+        Default is 0.
+    dec : float or float array
+        Declination.
+        Default is 0.
+    psi : float or float array
+        Roll angles of the telescope.
+        Default is 0.
+    coord : 'G', 'C' or 'H'
+        Result coordinate system. 'G' for Galactic coordinate, 
+        'C' for Equatorial coordinate.
+        Default is 'C'.
+    deg : bool.
+        If True, angles are in degrees.
+
+    Returns
+    -------
+    rmat : a 3x3 matrix or an array of 3x3 matrices
+        Rotation matrices.     
+    """
+
+    phi = np.array(ra)
+    psi = np.array(psi)
+    if deg:
+        theta = 90.0 - np.array(dec)
+    else:
+        theta = np.pi/2 - np.array(dec)
+
+    r1 = euler_ZYZ((psi, theta, phi), deg=deg, new=True) # horizontal coordinate - azimuth from the north.
+    if (coord =='C'):
+        rmat = r1
+    elif (coord == 'G'):
+        R_E2G = hp.Rotator(coord=['C', 'G'])
+        r2mat = [R_E2G.mat]
+        rmat = np.matmul(r2mat, rmat)
 
     return rmat
 
@@ -882,6 +940,7 @@ def Rotate(v_arr, rmat=None):
     return vp_arr 
 
 
+## angles from rotational matrices
 def rmat2euler(rmat, deg=True):
     """ returns euler angles (ZYZ convention) for the rotation matrices.
     http://www.gregslabaugh.net/publications/euler.pdf.
@@ -919,7 +978,7 @@ def rmat2euler(rmat, deg=True):
 
 
 def rmat2equatorial(rmat, deg=True):
-     """ returns angles in equatorial coordinate for the rotation matrices (ZYZ).
+    """ returns angles in equatorial coordinate for the rotation matrices (ZYZ).
     http://www.gregslabaugh.net/publications/euler.pdf.
     
     Parameters
@@ -954,4 +1013,6 @@ def rmat2equatorial(rmat, deg=True):
         phi, theta, psi = np.degrees((phi, theta, psi))
 
     return ra, dec, psi
+
+
 

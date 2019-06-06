@@ -516,7 +516,7 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
 
     v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat)
     v_zen = gbdir.Rotate(v_arr=(0,0,1), rmat=rmat)
-    dec, ra = hp.vec2ang(v_zen, lonlat=True) 
+    ra, dec = hp.vec2ang(v_zen, lonlat=True) 
 
     log.debug('v_obs.shape: {}'.format(v_obs.shape))
     v_obs = np.transpose(v_obs, (2,1,0))
@@ -682,7 +682,7 @@ def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
 
     v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat)
     v_zen = gbdir.Rotate(v_arr=(0,0,1), rmat=rmat)
-    dec, ra = hp.vec2ang(v_zen, lonlat=True) 
+    ra, dec = hp.vec2ang(v_zen, lonlat=True) 
 
     log.debug('v_obs.shape: {}'.format(v_obs.shape))
     v_obs = np.transpose(v_obs, (2,1,0))
