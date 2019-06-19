@@ -245,6 +245,11 @@ def angle_from_meridian_2D(r, v):
 
     r=np.array(r)
     v=np.array(v)
+
+    if v.shape[0] == 3:
+        r = r.T
+        v = v.T
+
     theta, phi = hp.vec2ang(r) 
     e_theta = np.array((np.cos(theta)*np.cos(phi), 
                         np.cos(theta)*np.sin(phi),
@@ -307,7 +312,7 @@ def angle_from_meridian(r, v):
     ## v: (nsample, 3, ndetector)
     v=np.array(v) 
 
-    if len(r.shape) == 2:
+    if len(r.shape) < 3:
         return angle_from_meridian_2D(r, v)
 
     nsample, _, ndetector = r.shape
@@ -724,7 +729,6 @@ def euler_ZYZ(angles, deg=True, new=False):
         phi = np.radians(phi)
         theta = np.radians(theta)
         psi = np.radians(psi)
-
 
     len_phi   = phi.size
     len_theta = theta.size

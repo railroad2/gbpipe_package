@@ -6,8 +6,9 @@ import datetime
 from gbpipe import gbsim
 
 def doit():
-    t1 = "2019-05-01T00:00:00"
-    t2 = "2019-05-02T00:00:00"
+    t1 = "2019-09-01T00:00:00"
+    t2 = "2019-09-01T00:20:00" # 20 min for test
+    #t2 = "2019-09-02T00:00:00" # 1 day
     dtsec = 600
     fsample = 1000
 

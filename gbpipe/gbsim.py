@@ -27,6 +27,14 @@ from .gbparam import GBparam
 from .utils import set_logger, function_name, today, qu2ippsi
 
 
+def tod_psd(signal, fsample):  
+    l = len(signal)
+    psd = np.fft.fft(signal)/l
+    freq = np.fft.fftfreq(l, d=1./fsample)
+
+    return freq, psd
+
+
 def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
