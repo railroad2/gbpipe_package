@@ -1493,6 +1493,122 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
     return
 
 
+def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10, 
+                        wnl=1, fknee=1, alpha=1, rseed=0, 
+                        module_id=None, fprefix='GBtod_noise', 
+                        outpath='.', transferFile=False):
+    """ Function for a parallelization of the noise simulation.
+    
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    noise : float array
+        The noise array to be written.
+    dtsec : float
+        Time interval between t1 and t2.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 10.
+    wnl : float
+        White noise level. (The unit is not deterined yet.)
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise.
+        Default is 1.
+    rseed : int
+        Random seed to be used in white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    transferFile : bool
+        If True, the data files are transferred to criar automatically.
+        Default is False.
+    """
+
+    log = set_logger(mp.current_process().name)
+
+    if module_id == None:
+        module_id = list(range(6))
+
+    log.info('Making time stamps')
+    st = Time(t1, format='isot', scale='utc')
+    et = Time(t2, format='isot', scale='utc')
+    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
+
+    l = dtsec * fsample
+
+    if (len(ut) != l):
+        log.error('Something is wrong. (len(ut)={}) != (l={})'.format(len(ut), l))
+
+    fname = '{}_{}_{}.fits'.format(fprefix, t1, t2)
+    aheaders = {'FNAME': fname, 
+                'CTIME'   : (Time.now().isot, 'File created time'),
+                'DATATYPE': 'NOISE SIM',
+                'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
+                'ISOT0': (t1, 'Observation start time'), 
+                'ISOT1': (t2, 'Observation end time'),
+                'FSAMPLE': (fsample, 'Sampling frequency (Hz)'),
+                'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
+               }
+    
+    if (socket.gethostname() == 'criar'):
+        opath = outpath 
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        opath = os.path.join(opath, t1[:10])
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        opath = os.path.join(opath, fprefix)
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        ofname = os.path.join(opath, fname)
+        wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
+    else:
+        opath = outpath
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        opath = os.path.join(opath, t1[:10])
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        opath = os.path.join(opath, fprefix)
+        try:
+            os.mkdir(opath)
+        except OSError:
+            log.warning('The path {} exists.'.format(opath))
+        ofname = os.path.join(opath, fname)
+        dfname = os.path.join(opath, fname)
+        wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
+        if (transferFile):
+            scp_file(ofname, dfname, remove=True)
+
+    return
+
+
 def GBsim_hpc_parallel_time(
         t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
         dtsec=600, fsample=10, mapname='cmb_rseed42.fits', 
@@ -1660,6 +1776,110 @@ def GBsim_noise(
         log.info('t1={}, t2={}'.format(t1, t2))
         proc = mp.Process(target=func_parallel_noise,
                           args=(t1, t2, dtsec, fsample, wnl, fknee, alpha, 
+                                rseeds[i], module_id, fprefix, outpath))
+        procs.append(proc)
+
+    log.debug(procs)
+    
+    procs_running = []
+    while len(procs):
+        if len(procs_running) < nmaxproc:
+            procs_running.append(procs[0])
+            procs[0].start()
+            log.info ('{} has been started'.format(procs[0].name))
+            procs.remove(procs[0])
+        else:
+            for proc in procs_running:
+                if not proc.is_alive():
+                    proc.join()
+                    procs_running.remove(proc)
+             
+    for proc in procs_running:
+        proc.join()
+
+    return
+
+
+def GBsim_noise_long(
+        t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
+        dtsec=600, fsample=10, 
+        wnl=1, fknee=1, alpha=1, rseed=0,
+        module_id=None, fprefix='GBtod_noise', outpath='.', nproc=8):
+
+    """ GroundBIRD simulation module for noise. It is parallelized 
+    over the time.
+
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2 in second.
+        Default is 600.
+    fsample : float
+        Sampling frequency in sps.
+    wnl : float
+        White noise level.
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise spectrum in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise. 
+        Default is 1.
+    rseed : int
+        Random seed to be used for white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nproc : int
+        Maximum number of processes.
+        Default is 8.
+    """
+    log = set_logger(mp.current_process().name)
+
+    st = t1
+    et = t2
+
+    if (outpath is None):
+        outpath = './{}_GBsim'.format(today())
+
+    st = Time(st, format='isot', scale='utc')
+    et = Time(et, format='isot', scale='utc')
+    dt = TimeDelta(dtsec, format='sec')
+
+    Nf = int((et-st)/dt) 
+    procs = []
+
+    nmaxproc = min(nproc, mp.cpu_count()-1)
+    log.info('Using {} cpus'.format(nmaxproc))
+
+    nsample = Nf
+    np.random.seed(rseed)
+    rseeds = np.random.randint(low=0, high=2**32-1, size=nsample)
+
+    log.info('Generating noise ...')
+    noise_full = sim_noise1f(l, wnl, fknee, fsample, alpha, rseed=rseed)
+    log.info('Generating noise finished')
+
+    for i in range(Nf):
+        t1 = (st + i*dt).isot
+        t2 = (st + (i+1)*dt).isot
+        log.info('t1={}, t2={}'.format(t1, t2))
+        l = dtsec * fsample
+        noise = noise_full[l*i:l*(i+1)] 
+        proc = mp.Process(target=func_parallel_noise,
+                          args=(t1, t2, noise, dtsec, fsample, wnl, fknee, alpha, 
                                 rseeds[i], module_id, fprefix, outpath))
         procs.append(proc)
 
