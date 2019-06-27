@@ -35,7 +35,7 @@ def tod_psd(signal, fsample):
     return freq, psd
 
 
-def sim_noise1f_old(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
+def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
 
@@ -91,7 +91,7 @@ def sim_noise1f_old(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=Fa
     return res
 
 
-def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=FSAMPLE, alpha=1):
+def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=1000, alpha=1):
     nyquist = fsample / 2.0
 
     tempfreq = []
@@ -132,7 +132,7 @@ def noise_generator_v1(length, psdf, psdv, fsample, seed=100001):
     gen_amp = gen_amp * np.exp(1j*gen_phi)
     tod = ifft(gen_amp)*length
 
-    return tod 
+    return np.real(tod)
 
 
 def sim_obs_singlepix(t1, t2, fsample=1000): 
