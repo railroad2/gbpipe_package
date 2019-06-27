@@ -190,15 +190,20 @@ class GBparam:
         ax.axis('equal')
         x = self.pixinfo['Yfoc']  # due to the axis definition in LT, x and y are exchanged.
         y = self.pixinfo['Xfoc']
-        sc=ax.scatter(x, y, s=80, marker='o', 
-                      #edgecolors=self.pixinfo['mod'], 
-                      edgecolors='k',
-                      facecolors='none',
-                      linewidth=0.5)
+        #sc=ax.scatter(x, y, s=80, marker='o', 
+        #              #edgecolors=self.pixinfo['mod'], 
+        #              edgecolors='k',
+        #              facecolors='none',
+        #              linewidth=0.5)
 
         ## antenna direction
-        ll = 3
+        ll = 3.2
         for p in self.pixinfo:
+            px = p['Yfoc']
+            py = p['Xfoc']
+            detector = plt.Circle((px, py), 3, color='k', fill=False)
+            ax.add_artist(detector)
+
             ang = p['omtfoc'] 
             sin0 = np.sin(np.radians(ang))
             cos0 = np.cos(np.radians(ang))
@@ -216,6 +221,8 @@ class GBparam:
             ax.add_line(l1)
             ax.add_line(l2)
 
+        ax.ylim=(-100, 100)
+        ax.xlim=(-100, 100)
         #plt.colorbar(sc) 
         plt.show()
 

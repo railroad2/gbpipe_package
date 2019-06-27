@@ -35,7 +35,7 @@ def tod_psd(signal, fsample):
     return freq, psd
 
 
-def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
+def sim_noise1f_old(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
 
@@ -44,7 +44,7 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
     l : int
         Data length 
     wnl : float
-        White noise level (NET: Noise Equivalent Temperature)
+        White noise level (K*s^0.5)
     fknee : float
         Knee frequency.
     fsample : float
@@ -89,6 +89,50 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
         res = n_1f
 
     return res
+
+
+def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=FSAMPLE, alpha=1):
+    nyquist = fsample / 2.0
+
+    tempfreq = []
+
+    # this starting point corresponds to a high-pass of
+    # 30 years, so should be low enough for any interpolation!
+    cur = 1.0e-9
+
+    # this value seems to provide a good density of points
+    # in log space.
+    while cur < nyquist:
+        tempfreq.append(cur)
+        cur *= 1.4
+
+    tempfreq.append(nyquist)
+
+    ktemp = np.power(fknee, alpha)
+    mtemp = np.power(fmin, alpha)
+    temp = np.power(tempfreq, alpha)
+    psds = (temp + ktemp) / (temp + mtemp)
+    psds *= (NET * NET)
+    return tempfreq, psds
+
+
+def noise_generator_v1(length, psdf, psdv, fsample, seed=100001):
+    from scipy.fftpack import fftfreq, ifft
+    psd_int = interp1d(psdf, psdv, fill_value='extrapolate') # interpolation for even-interval sampling
+    gen_freq = fftfreq(n=length, d=1/fsample) # even-intervl frequency
+
+    # gen_freq[0] is 0 but psdf would not have f=0Hz component. 
+    # Here we simply avoid 0 Hz and add 0. for the 0th element of even-interval PSD
+    gen_psd = np.array(([0.] + psd_int(np.abs(gen_freq[1:])).tolist()))
+
+    df = gen_freq[1] - gen_freq[0]
+    gen_amp = np.sqrt(gen_psd*df)
+    np.random.seed(seed)
+    gen_phi = np.random.uniform(0, 2*np.pi, size=length)
+    gen_amp = gen_amp * np.exp(1j*gen_phi)
+    tod = ifft(gen_amp)*length
+
+    return tod 
 
 
 def sim_obs_singlepix(t1, t2, fsample=1000): 
@@ -1857,6 +1901,7 @@ def GBsim_noise_long(
     st = Time(st, format='isot', scale='utc')
     et = Time(et, format='isot', scale='utc')
     dt = TimeDelta(dtsec, format='sec')
+    tot = int(et.unix - st.unix)
 
     Nf = int((et-st)/dt) 
     procs = []
@@ -1869,6 +1914,7 @@ def GBsim_noise_long(
     rseeds = np.random.randint(low=0, high=2**32-1, size=nsample)
 
     log.info('Generating noise ...')
+    l = tot * fsample
     noise_full = sim_noise1f(l, wnl, fknee, fsample, alpha, rseed=rseed)
     log.info('Generating noise finished')
 
@@ -1876,9 +1922,9 @@ def GBsim_noise_long(
         t1 = (st + i*dt).isot
         t2 = (st + (i+1)*dt).isot
         log.info('t1={}, t2={}'.format(t1, t2))
-        l = dtsec * fsample
-        noise = noise_full[l*i:l*(i+1)] 
-        proc = mp.Process(target=func_parallel_noise,
+        l1 = int(dtsec * fsample)
+        noise = noise_full[l1*i:l1*(i+1)] 
+        proc = mp.Process(target=func_parallel_noise_long,
                           args=(t1, t2, noise, dtsec, fsample, wnl, fknee, alpha, 
                                 rseeds[i], module_id, fprefix, outpath))
         procs.append(proc)
