@@ -6,9 +6,11 @@ import os, sys
 import socket
 import logging
 import datetime
+
+import multiprocessing as mp
+
 import numpy as np
 import healpy as hp
-import multiprocessing as mp
 
 try:
     import colorlog
@@ -64,7 +66,7 @@ def set_logger(name=mp.current_process().name, display=True,
         else:
             logger.setLevel(logging.INFO)
 
-        logfmt = ' [%(levelname)-8s] %(asctime)s {0} [%(name)s][%(funcName)s] %(message)s'.format(socket.gethostname())
+        logfmt = ' [%(levelname)-8s] %(asctime)s {0} [%(name)s][%(funcName)s] %(message)s'.format(hostname())
         datefmt = '%b %d %H:%M:%S'
         f = logging.Formatter(logfmt, datefmt)
 
@@ -274,6 +276,11 @@ def function_name():
 def process_name():
     """ Returns the name of the current process."""
     return mp.current_process().name
+
+
+def hostname():
+    """ Returns the hostname."""
+    return socket.gethostname()
 
 
 def qu2ippsi(Q, U):
