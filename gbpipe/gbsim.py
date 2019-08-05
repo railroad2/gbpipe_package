@@ -35,7 +35,7 @@ def tod_psd(signal, fsample):
     return freq, psd
 
 
-def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
+def sim_noise1f_old(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (wnl**2/NFFT)*(1 + (fknee/f)**alpha)
 
@@ -87,6 +87,52 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
         res = [n_1f, (freq, s)] 
     else:
         res = n_1f
+
+    return res
+
+
+def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
+    """ Generates noise tod which has power spectrum of 
+    s(f) = (sigma**2/NFFT)*(1 + (fknee/f)**alpha)
+
+    Parameters
+    ----------
+    l : int
+        Data length 
+    wnl : float
+        White noise level (NET, K*s^0.5)
+    fknee : float
+        Knee frequency.
+    fsample : float
+        Sampling frequency.
+        Default is 1000 sps(sample per second).
+    alpha : float
+        Exponent of 1/f noise window.
+        Default is 1.
+    rseed : int
+        Random seed for white noise generation.
+
+    Returns
+    -------
+    n_1f : float array
+        1/f noise. Real part of inverse fft of the spectrum.
+    freq : float array
+        frequency of psd (optional)
+    s_1f : float array
+        analytic power spectral density (optional)
+         
+    """ 
+    log = set_logger(function_name())
+    
+    psdf, psdv = noise_psd(fknee, NET=wnl, fsample=fsample, alpha=alpha)
+    # psdv * 2 : noise_psd() generates psd only for positive frequencies. 
+    #            to account the negative psd, psd should be doubled. 
+    tod = noise_generator_v1(l, psdf, psdv*2, fsample=fsample, seed=rseed)
+
+    if return_psd:
+        res = tod, (psdf, psdv)
+    else:
+        res = tod
 
     return res
 
