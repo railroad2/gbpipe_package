@@ -37,3 +37,4 @@ if __name__=='__main__':
     hp.mollview(mask_5deg)
     hp.mollview(mask_20deg)
     plt.show()
+

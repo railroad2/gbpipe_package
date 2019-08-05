@@ -1,6 +1,6 @@
-""" This file is part of GBpipe.
+""" This file is part of gbpipe.
 
-GBpipe is a package for GroundBIRD data processing.
+The gbpipe is a package for GroundBIRD data processing.
 It provides observation direction calculation functions.
 """
 
