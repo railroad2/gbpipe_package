@@ -186,7 +186,7 @@ def dl2cl(dls):
         ell = np.arange(len(cls))
         cls[1:] = cls[1:] * (2. * np.pi) / (ell[1:] * (ell[1:] + 1))
     elif (arr_rank(dls)==2):
-        if (len(dls) < 6):
+        if (len(dls) < 10):
             cls = dls.copy()
             ell = np.arange(len(cls[0]))
             for i in range(len(cls)):
@@ -221,7 +221,7 @@ def cl2dl(cls):
         ell = np.arange(len(dls))
         dls[1:] = dls[1:] / (2. * np.pi) * (ell[1:] * (ell[1:] + 1))
     elif (arr_rank(cls)==2):
-        if (len(cls) < 7):
+        if (len(cls) < 10):
             dls = cls.copy()
             ell = np.arange(len(dls[0]))
             for i in range(len(dls)):
