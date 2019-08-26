@@ -1391,6 +1391,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     nmodpixs = [np.shape(tod)[1] for tod in tod_Ix]
 
+    """
     fname = '{}_{}_{}.fits'.format(fprefix, t1, t2)
     aheaders = {'FNAME'   : fname, 
                 'CTIME'   : (Time.now().isot, 'File created time'),
@@ -1402,6 +1403,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                 'NMODULES': (str(list(map(int, nmodout)))[1:-1], 'Used modules'),
                 'NMODPIXS': (str(nmodpixs)[1:-1], 'Number of pixels in each module'),
                }
+    """
 
     if (socket.gethostname() == 'criar'):
         opath = outpath
@@ -1419,8 +1421,24 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
             os.mkdir(opath)
         except OSError:
             log.warning('The path {} exists.'.format(opath))
-        ofname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        #ofname = os.path.join(opath, fname)
+        #wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        for i in range(len(nmodout)):
+            nmod = nmodout[i]
+            fname = '{}_{}_{}_{}.fits'.format(fprefix, 'mod{}'.format(nmod), t1, t2)
+            aheaders = {'FNAME'   : fname, 
+                        'CTIME'   : (Time.now().isot, 'File created time'),
+                        'DATATYPE': 'TODSIM',
+                        'ISOT0'   : (t1, 'Observation start time'), 
+                        'ISOT1'   : (t2, 'Observation end time'),
+                        'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
+                        'EL'      : (el, 'Elevation'),
+                        'NMODULES': (str(nmodout[i]), 'Used modules'),
+                        'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
+                       }
+
+            ofname = os.path.join(opath, 'module_{}'.format(i), fname)
+            wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
     else:
         opath = outpath 
         try:
@@ -1438,12 +1456,28 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         except OSError:
             log.warning('The path {} exists.'.format(opath))
 
-        ofname = os.path.join(opath, fname)
-        dfname = os.path.join(opath, fname)
-        wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        #ofname = os.path.join(opath, fname)
+        #dfname = os.path.join(opath, fname)
+        #wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        for i in range(len(nmodout)):
+            nmod = nmodout[i]
+            fname = '{}_{}_{}_{}.fits'.format(fprefix, 'mod{}'.format(nmod), t1, t2)
+            aheaders = {'FNAME'   : fname, 
+                        'CTIME'   : (Time.now().isot, 'File created time'),
+                        'DATATYPE': 'TODSIM',
+                        'ISOT0'   : (t1, 'Observation start time'), 
+                        'ISOT1'   : (t2, 'Observation end time'),
+                        'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
+                        'EL'      : (el, 'Elevation'),
+                        'NMODULES': (str(nmodout[i]), 'Used modules'),
+                        'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
+                       }
 
-        if (transferFile):
-            scp_file(ofname, dfname, remove=True)
+            ofname = os.path.join(opath, 'module_{}'.format(i), fname)
+            dfname = os.path.join(opath, 'module_{}'.format(i), fname)
+            wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
+            if (transferFile):
+                scp_file(ofname, dfname, remove=True)
 
     if nside_hitmap:
         hpath = opath + '_hitmap'

@@ -118,17 +118,17 @@ def get_spectrum_noise(lmax, wp, fwhm=None, isDl=True, TTonly=False, CMB_unit=No
     return res
 
 
-def get_spectrum_xpol(lmax, map_in, mask):
+def get_spectrum_xpol(map_in, lmax, mask):
     blow = np.arange(lmax)
-    lupp = blow + 1
+    bupp = blow + 1
     bins = xpol.Bins(blow, bupp)
     xp = xpol.Xpol(mask, bins)
 
-    cl_unbiased, cl_biased_tmp = xp.get_spectra(map_in)
+    cl_biased, cl_unbiased_tmp = xp.get_spectra(map_in)
 
-    cl_biased = np.zeros(cl_unbiased.shape)
-    cl_biased[:, 2:] = cl_biased_tmp
+    cl_unbiased = np.zeros(cl_biased.shape)
+    cl_unbiased[:, 2:] = cl_unbiased_tmp
     
-    return cl_unbiased, cl_biased
+    return cl_biased, cl_unbiased
 
 

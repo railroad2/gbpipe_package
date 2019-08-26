@@ -24,7 +24,7 @@ CBLU = '\033[1;34m'
 CEND = '\033[0m'
 
 
-def set_logger(name=mp.current_process().name, display=True, 
+def set_logger(name=mp.current_process().name, display=True, logfile=False,
                filename=None, level='INFO'):
     """ Setting up logger. 
 
@@ -85,13 +85,14 @@ def set_logger(name=mp.current_process().name, display=True,
         else:
             ch.setFormatter(f)
 
-        if (filename is None):
-            t = datetime.datetime.now().date().isoformat()
-            filename = './log_name_{}.log'.format(t)
-
-        fh = logging.FileHandler(filename)
-        fh.setFormatter(f)
-        logger.addHandler(fh)
+        if logfile:
+            if (filename is None):
+                t = datetime.datetime.now().date().isoformat()
+                filename = './log_name_{}.log'.format(t)
+            
+            fh = logging.FileHandler(filename)
+            fh.setFormatter(f)
+            logger.addHandler(fh)
 
         if display:
             logger.addHandler(ch)
@@ -234,6 +235,9 @@ def cl2dl(cls):
                 dls[i][1:] = dls[i][1:] / (2. * np.pi) \
                              * (ell[1:] * (ell[1:]+1))
             dls = np.transpose(dls) 
+    else:
+        print('cls has shape of', cls.shape)
+        return 
 
     return dls
 
