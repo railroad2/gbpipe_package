@@ -1284,6 +1284,77 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra, psi_equ,
     return
 
 
+def wr_tod2fits_singlemod(fname, ut, az, dec, ra, psi_equ, 
+                    tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod, 
+                    module_id, **aheaders):
+    """ Write tod for single module in fits file. 
+
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    az : float array
+        Azimuth angles.
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    psi_equ : float array
+        psi angle of the GB center
+    tod_Ix : float array
+        TOD Ix for the module.
+    tod_Iy : float array
+        TOD Iy for the module.
+    tod_psi : float array 
+        TOD psi for the module.
+    tod_pix : float array   
+        Observed sky pixel for the module
+    module_id : int 
+        Module index
+    **aheaders : dictionary
+        Additional headers.
+    """
+    log = set_logger(mp.current_process().name)
+    cols = [fits.Column(name='UT',      format='D', array=ut ),
+            fits.Column(name='AZ',      format='E', array=az ),
+            fits.Column(name='DEC',     format='E', array=dec),
+            fits.Column(name='RA',      format='E', array=ra ),
+            fits.Column(name='PSI_EQU', format='E', array=psi_equ)]
+
+    header = fits.Header()
+    for key, value in aheaders.items():
+        header[key] = value
+        
+    n = module_id
+    #for n, tod_Ix, tod_Iy, tod_psi, tod_pix in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod):
+
+    cols.append(fits.Column(name='TOD_Ix_mod_%d' % (n), 
+                    format='{}D'.format(np.prod(np.shape(tod_Ix)[1:])), 
+                    array=tod_Ix))
+    cols.append(fits.Column(name='TOD_Iy_mod_%d' % (n), 
+                    format='{}D'.format(np.prod(np.shape(tod_Iy)[1:])), 
+                    array=tod_Iy))
+    cols.append(fits.Column(name='TOD_psi_mod_%d' % (n), 
+                    format='{}D'.format(np.prod(np.shape(tod_psi)[1:])), 
+                    array=tod_psi))
+    cols.append(fits.Column(name='TOD_pix_mod_%d' % (n), 
+                    format='{}J'.format(np.prod(np.shape(tod_pix)[1:])), 
+                    array=tod_pix))
+
+    hdu = fits.BinTableHDU.from_columns(cols, header)
+
+    try: 
+        hdu.writeto(fname)
+        log.info('{} has been created.'.format(fname))
+    except OSError:
+        hdu.writeto(fname, overwrite=True)
+        log.warning('{} has been overwritten.'.format(fname))
+
+    return
+
+
 def wr_tod2fits_noise(fname, ut, noise, module_id, **aheaders):
     """ Write noise tod in fits file. 
 
@@ -1444,7 +1515,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                 log.warning('The path {} exists.'.format(opath_mod))
                 
             ofname = os.path.join(opath_mod, fname)
-            wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
+            wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
     else:
         opath = outpath 
         try:
@@ -1489,7 +1560,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
             ofname = os.path.join(opath_mod, fname)
             dfname = ofname
 
-            wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
+            wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
 
             if (transferFile):
                 scp_file(ofname, dfname, remove=True)
