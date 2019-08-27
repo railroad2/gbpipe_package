@@ -1437,7 +1437,13 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                         'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
                        }
 
-            ofname = os.path.join(opath, 'module_{}'.format(i), fname)
+            opath_mod = os.path.join(opath, 'module_{}'.format(i))
+            try:
+                os.mkdir(opath)
+            except OSError:
+                log.warning('The path {} exists.'.format(opath_mod))
+                
+            ofname = os.path.join(opath_mod, fname)
             wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
     else:
         opath = outpath 
@@ -1459,6 +1465,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         #ofname = os.path.join(opath, fname)
         #dfname = os.path.join(opath, fname)
         #wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+
         for i in range(len(nmodout)):
             nmod = nmodout[i]
             fname = '{}_{}_{}_{}.fits'.format(fprefix, 'mod{}'.format(nmod), t1, t2)
@@ -1473,9 +1480,17 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                         'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
                        }
 
-            ofname = os.path.join(opath, 'module_{}'.format(i), fname)
-            dfname = os.path.join(opath, 'module_{}'.format(i), fname)
+            opath_mod = os.path.join(opath, 'module_{}'.format(i))
+            try:
+                os.mkdir(opath)
+            except OSError:
+                log.warning('The path {} exists.'.format(opath_mod))
+                
+            ofname = os.path.join(opath_mod, fname)
+            dfname = ofname
+
             wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
+
             if (transferFile):
                 scp_file(ofname, dfname, remove=True)
 
