@@ -22,7 +22,7 @@ sys.path.append(DIRNAME)
 sys.path.append(DIRNAME+'../')
 
 from . import gbdir
-from .utils import dl2cl, cl2dl
+from .utils import dl2cl, cl2dl, mkdir
 from .gbparam import GBparam
 from .utils import set_logger, function_name, today, qu2ippsi
 
@@ -535,9 +535,9 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     tod_I : float array
         Simulated tod I.
     tod_Q : float array
-        Simulated tod I.
+        Simulated tod Q.
     tod_U : float array
-        Simulated tod I
+        Simulated tod U
     """
     param = GBparam()
     log = set_logger(mp.current_process().name)
@@ -1075,7 +1075,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     n0 = 0
 
     for n in np.add.accumulate(modpix_cnt):
-        ## tod_Ix/Iy/psi_mod: (module_cnt * nsample * ndetector)
+        ## tod_{Ix/Iy/psi}_mod: (module_cnt, nsample, ndetector)
         tod_Ix_mod.append(tod_Ix[:, n0:n])  
         tod_Iy_mod.append(tod_Iy[:, n0:n])
         tod_psi_mod.append(tod_psi[:, n0:n])
@@ -1285,7 +1285,7 @@ def wr_tod2fits_mod(fname, ut, az, dec, ra, psi_equ,
 
 
 def wr_tod2fits_singlemod(fname, ut, az, dec, ra, psi_equ, 
-                    tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod, 
+                    tod_Ix, tod_Iy, tod_psi, tod_pix, 
                     module_id, **aheaders):
     """ Write tod for single module in fits file. 
 
@@ -1328,20 +1328,19 @@ def wr_tod2fits_singlemod(fname, ut, az, dec, ra, psi_equ,
         header[key] = value
         
     n = module_id
-    #for n, tod_Ix, tod_Iy, tod_psi, tod_pix in zip(module_id, tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod):
 
-    cols.append(fits.Column(name='TOD_Ix_mod_%d' % (n), 
-                    format='{}D'.format(np.prod(np.shape(tod_Ix)[1:])), 
-                    array=tod_Ix))
-    cols.append(fits.Column(name='TOD_Iy_mod_%d' % (n), 
-                    format='{}D'.format(np.prod(np.shape(tod_Iy)[1:])), 
-                    array=tod_Iy))
-    cols.append(fits.Column(name='TOD_psi_mod_%d' % (n), 
-                    format='{}D'.format(np.prod(np.shape(tod_psi)[1:])), 
-                    array=tod_psi))
-    cols.append(fits.Column(name='TOD_pix_mod_%d' % (n), 
-                    format='{}J'.format(np.prod(np.shape(tod_pix)[1:])), 
-                    array=tod_pix))
+    cols.append(fits.Column(name='TOD_Ix', 
+                            format='{}D'.format(np.prod(np.shape(tod_Ix)[1:])), 
+                            array=tod_Ix))
+    cols.append(fits.Column(name='TOD_Iy', 
+                            format='{}D'.format(np.prod(np.shape(tod_Iy)[1:])), 
+                            array=tod_Iy))
+    cols.append(fits.Column(name='TOD_psi', 
+                            format='{}D'.format(np.prod(np.shape(tod_psi)[1:])), 
+                            array=tod_psi))
+    cols.append(fits.Column(name='TOD_pix', 
+                            format='{}J'.format(np.prod(np.shape(tod_pix)[1:])), 
+                            array=tod_pix))
 
     hdu = fits.BinTableHDU.from_columns(cols, header)
 
@@ -1462,117 +1461,38 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     nmodpixs = [np.shape(tod)[1] for tod in tod_Ix]
 
-    """
-    fname = '{}_{}_{}.fits'.format(fprefix, t1, t2)
-    aheaders = {'FNAME'   : fname, 
-                'CTIME'   : (Time.now().isot, 'File created time'),
-                'DATATYPE': 'TODSIM',
-                'ISOT0'   : (t1, 'Observation start time'), 
-                'ISOT1'   : (t2, 'Observation end time'),
-                'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
-                'EL'      : (el, 'Elevation'),
-                'NMODULES': (str(list(map(int, nmodout)))[1:-1], 'Used modules'),
-                'NMODPIXS': (str(nmodpixs)[1:-1], 'Number of pixels in each module'),
-               }
-    """
+    opath = os.path.join(outpath, t1[:10], fprefix)
 
-    if (socket.gethostname() == 'criar'):
-        opath = outpath
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, t1[:10])
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, fprefix)
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        #ofname = os.path.join(opath, fname)
-        #wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
-        for i in range(len(nmodout)):
-            nmod = nmodout[i]
-            fname = '{}_{}_{}_{}.fits'.format(fprefix, 'mod{}'.format(nmod), t1, t2)
-            aheaders = {'FNAME'   : fname, 
-                        'CTIME'   : (Time.now().isot, 'File created time'),
-                        'DATATYPE': 'TODSIM',
-                        'ISOT0'   : (t1, 'Observation start time'), 
-                        'ISOT1'   : (t2, 'Observation end time'),
-                        'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
-                        'EL'      : (el, 'Elevation'),
-                        'NMODULES': (str(nmodout[i]), 'Used modules'),
-                        'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
-                       }
+    for i, mod_idx in enumerate(nmodout):
+        fname = '{}_mod{}_{}_{}.fits'.format(fprefix, mod_idx, t1, t2)
+        aheaders = {'FNAME'   : fname, 
+                    'CTIME'   : (Time.now().isot, 'File created time'),
+                    'DATATYPE': 'TODSIM',
+                    'ISOT0'   : (t1, 'Observation start time'), 
+                    'ISOT1'   : (t2, 'Observation end time'),
+                    'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
+                    'EL'      : (el, 'Elevation'),
+                    'NMODULES': (str(nmodout[i]), 'Used modules'),
+                    'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
+                   }
 
-            opath_mod = os.path.join(opath, 'module_{}'.format(i))
-            try:
-                os.mkdir(opath)
-            except OSError:
-                log.warning('The path {} exists.'.format(opath_mod))
-                
-            ofname = os.path.join(opath_mod, fname)
-            wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
-    else:
-        opath = outpath 
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, t1[:10])
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, fprefix)
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
+        opath_mod = os.path.join(opath, 'module_{}'.format(nmod))
+        mkdir(opath_mod)
+            
+        ofname = os.path.join(opath_mod, fname)
+        wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], mod_idx, **aheaders)
 
-        #ofname = os.path.join(opath, fname)
-        #dfname = os.path.join(opath, fname)
-        #wr_tod2fits_mod(ofname, ut, az, dec, ra, psi_equ, tod_Ix, tod_Iy, tod_psi, tod_pix, nmodout, **aheaders)
+        ofname = os.path.join(opath_mod, fname)
 
-        for i in range(len(nmodout)):
-            nmod = nmodout[i]
-            fname = '{}_{}_{}_{}.fits'.format(fprefix, 'mod{}'.format(nmod), t1, t2)
-            aheaders = {'FNAME'   : fname, 
-                        'CTIME'   : (Time.now().isot, 'File created time'),
-                        'DATATYPE': 'TODSIM',
-                        'ISOT0'   : (t1, 'Observation start time'), 
-                        'ISOT1'   : (t2, 'Observation end time'),
-                        'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
-                        'EL'      : (el, 'Elevation'),
-                        'NMODULES': (str(nmodout[i]), 'Used modules'),
-                        'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
-                       }
+        wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
 
-            opath_mod = os.path.join(opath, 'module_{}'.format(i))
-            try:
-                os.mkdir(opath)
-            except OSError:
-                log.warning('The path {} exists.'.format(opath_mod))
-                
-            ofname = os.path.join(opath_mod, fname)
+        if (transferFile):
             dfname = ofname
-
-            wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
-
-            if (transferFile):
-                scp_file(ofname, dfname, remove=True)
+            scp_file(ofname, dfname, remove=True)
 
     if nside_hitmap:
         hpath = opath + '_hitmap'
-
-        try:
-            os.mkdir(hpath)
-        except OSError:
-            log.warning('The path {} exists.'.format(hpath))
-
+        mkdir(hpath)
         hfname = os.path.join(hpath, '{}_hitmap_{}_{}.fits'.format(fprefix, t1, t2))
         cnames = ['hitmap_'+str(i) for i in nmodout]
 

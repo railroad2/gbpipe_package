@@ -20,7 +20,7 @@ from astropy.utils.console import color_print
 DIRNAME = os.path.dirname(__file__)
 sys.path.append(DIRNAME)
 
-from utils import set_logger
+from .utils import set_logger
 
 class GBparam:
     """ Stores parameters of GroundBIRD analysis.

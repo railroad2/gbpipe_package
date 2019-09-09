@@ -2,7 +2,8 @@
 Tools for gbpipe.
 """
 from __future__ import print_function
-import os, sys
+import os
+import sys
 import socket
 import logging
 import datetime
@@ -332,4 +333,19 @@ def ippsi2qu(Ip, psi):
 
     return Q, U
 
+
+def mkdir(path):
+    spath = path.split(os.sep)
+    
+    if path[0] == '/':
+        cpath = '/'
+    else:
+        cpath = ''
+
+    for i in spath:
+        cpath = os.path.join(cpath, i)
+        if not os.path.isdir(cpath):
+            os.mkdir(cpath)
+
+    return 
 
