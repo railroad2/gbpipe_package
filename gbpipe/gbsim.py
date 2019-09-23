@@ -1271,7 +1271,9 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     log = set_logger(mp.current_process().name)
     map_in = hp.read_map(mapname, field=(0,1,2), verbose=False)
-    if not nside == None:
+    if nside is None:
+        nside = int(np.sqrt(len(map_in[0])/12))
+    else:
         map_in = hp.ud_grade(map_in, nside_out=nside) 
 
     res = sim_tod_focalplane_module(t1, t2, map_in=map_in, fsample=fsample, 
@@ -1288,6 +1290,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         aheaders = {'FNAME'   : fname, 
                     'CTIME'   : (Time.now().isot, 'File created time'),
                     'DATATYPE': 'TODSIM',
+                    'SRCNAME' : (mapname, 'Source map file name'),
                     'ISOT0'   : (t1, 'Observation start time'), 
                     'ISOT1'   : (t2, 'Observation end time'),
                     'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
@@ -1626,7 +1629,7 @@ def GBsim_hpc_parallel_time(
         log.info('t1={}, t2={}'.format(t1_, t2_))
         proc = mp.Process(target=func_parallel_tod, 
                           args=(t1_, t2_, fsample, mapname, module_id, 
-                                fprefix, outpath, nside_hitmap))
+                                fprefix, outpath, nside, nside_hitmap))
         procs.append(proc)
 
     log.debug(procs)

@@ -12,14 +12,16 @@ def doit():
     dtsec = 600
     fsample = 1000
 
-    cmbname   = "/home/klee_ext/kmlee/maps/cmb_rseed42_0_5deg.fits"
-    fg145name = "/home/klee_ext/kmlee/maps/fg145_equ.fits"
-    fg220name = "/home/klee_ext/kmlee/maps/fg225_equ.fits"
+    #cmbname   = "/home/klee_ext/kmlee/maps/cmb_rseed42_0_5deg.fits"
+    cmbname   = "/home/klee_ext/kmlee/maps/cmb_toy.fits"
+    fg145name = "/home/klee_ext/kmlee/maps/fg145comb_Ns1024_fwhm0_5.fits"
+    fg220name = "/home/klee_ext/kmlee/maps/fg225comb_Ns1024_fwhm0_5.fits"
     dt = datetime.datetime.now()
     nproc = 16
+    nside = 1024
     nside_hitmap = 1024 
 
-    outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_1day_beam".format(dt.strftime("%Y-%m-%d"))
+    outpath = "/home/klee_ext/kmlee/hpc_data/{}_GBsim_1day_mod".format(dt.strftime("%Y-%m-%d"))
 
     """
     gbsim.GBsim_noise_long(t1, t2, dtsec=dtsec,
@@ -35,29 +37,25 @@ def doit():
         outpath=outpath, nproc=nproc)
     """
 
-    gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=cmbname, module_id=(1, 2, 3, 4, 5, 6), 
-        fprefix="GBtod_cmb145", outpath=outpath, 
-        nside_hitmap=nside_hitmap, nproc=nproc)
-
-    gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
-        fsample=fsample, mapname=cmbname, module_id=0,
-        fprefix="GBtod_cmb220", outpath=outpath,
-        nside_hitmap=nside_hitmap, nproc=nproc)
-
     """
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
+        fsample=fsample, mapname=cmbname, module_id=(0, 1, 2, 3, 4, 5, 6), 
+        fprefix="GBtod_cmb", outpath=outpath, 
+        nside_hitmap=nside_hitmap, nproc=nproc)
+    """
+
+    gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
         fsample=fsample, mapname=fg145name, module_id=(1, 2, 3, 4, 5, 6),
-        fprefix="GBtod_fg145", outpath=outpath,
-        nside_hitmap=False, nproc=nproc)
+        fprefix="GBtod_fg145comb", outpath=outpath,
+        nside=nside, nside_hitmap=False, nproc=nproc)
 
     gbsim.GBsim_hpc_parallel_time(t1, t2, dtsec=dtsec,
         fsample=fsample, mapname=fg220name, module_id=0,
-        fprefix="GBtod_fg220", outpath=outpath,
-        nside_hitmap=False, nproc=nproc)
-    """
+        fprefix="GBtod_fg220comb", outpath=outpath,
+        nside=nside, nside_hitmap=False, nproc=nproc)
 
     return
 
 if __name__ == "__main__":
     doit()
+

@@ -182,14 +182,14 @@ class GBparam:
         print('-'*50)
         print()
 
-    def plot_focalplane(self):
+    def plot_focalplane2(self):
         """ Plot focal plane. """
         import pylab as plt
         import matplotlib.lines as mline
         ax=plt.subplot(111)
         ax.axis('equal')
         x = self.pixinfo['Yfoc']  # due to the axis definition in LT, x and y are exchanged.
-        y = self.pixinfo['Xfoc']
+        y = -1.0*self.pixinfo['Xfoc']
         #sc=ax.scatter(x, y, s=80, marker='o', 
         #              #edgecolors=self.pixinfo['mod'], 
         #              edgecolors='k',
@@ -201,7 +201,7 @@ class GBparam:
         for p in self.pixinfo:
             px = p['Yfoc']
             py = p['Xfoc']
-            detector = plt.Circle((px, py), 3, color='k', fill=False)
+            detector = plt.Circle((px, py), 0.1, color='k', fill=False)
             ax.add_artist(detector)
 
             ang = p['omtfoc'] 
@@ -223,6 +223,18 @@ class GBparam:
 
         ax.ylim=(-100, 100)
         ax.xlim=(-100, 100)
+        #plt.colorbar(sc) 
+        plt.show()
+
+    def plot_focalplane(self):
+        """ Plot focal plane. """
+        import pylab as plt
+        x = -1*self.pixinfo['Yfoc']  # due to the axis definition in LT, x and y are exchanged.
+        y = self.pixinfo['Xfoc']
+
+        plt.scatter(x, y)
+        plt.axis('equal')
+
         #plt.colorbar(sc) 
         plt.show()
 
@@ -285,7 +297,7 @@ class GBparam:
                       s=70)
                       #c=(pix['omtfoc']-pix['omtffr']) )
                       #s=abs(pix['omtfoc']-pix['omtffr'])*100)
-        ax.set_rmax(15)
+        #ax.set_rmax(15)
 
         ## antenna direction (not used)
         #lt = 0.3
