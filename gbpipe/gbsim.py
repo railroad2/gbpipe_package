@@ -668,190 +668,11 @@ def sim_tod_focalplane(t1, t2, fsample=1000, map_in=None, rseed=42):
     return ut, dec, ra, tod_I, tod_Q, tod_U
 
 
-def sim_tod_focalplane_multi(t1, t2, fsample=1000, map_in=None, rseed=42):
-    """ Simulation module for an observation with a focal plane. 
-    To test the multiprocessing. 
-    
-    Parameters
-    ----------
-    t1 : string
-        Starting time of the simulation in ISOT.
-    t2 : string
-        End time of the simulation in ISOT.
-    fsample : float
-        Sampling frequency in sps.
-        Default is 1000.
-    map_in : float array
-        Input map for tod simulation.
-        If None, it synthesizes a map by using rseed as a random seed. 
-        Default is None.
-    rseed : int
-        Random seed that is used to synthesize the source map.
-    
-    Returns
-    -------
-    ut : float array
-        Time stamp in unixtime.
-    dec : float array
-        Declination.
-    ra : float array
-        Right ascension.
-    tod_I : float array
-        Simulated tod I.
-    tod_Q : float array
-        Simulated tod I.
-    tod_U : float array
-        Simulated tod I
-    """
-    param = GBparam()
-    log = set_logger(mp.current_process().name)
-
-    if map_in is None:
-        ## synthesize TQU map 
-        log.info('Synthesizing a map')
-        import camb
-        par_camb = camb.CAMBparams()
-        par_camb.set_cosmology(H0=67.5)
-        res = camb.get_results(par_camb)
-        dls = res.get_cmb_power_spectra(par_camb, CMB_unit='K')['total']
-        ell = np.arange(len(dls))
-        cls = dl2cl(dls)
-
-        np.random.seed(rseed)
-        map_in = hp.synfast(cls=cls.T, nside=1024, new=True)
-
-    ##################################
-    # define local sidereal time
-    ##################################
-    st = Time(t1, format='isot', scale='utc')
-    et = Time(t2, format='isot', scale='utc')
-
-    #ut_arr = np.arange(st.unix, et.unix, 1./fsample)
-    #ut = Time(ut_arr, format='unix') 
-    #lst_ut = ut.sidereal_time('apparent', par.lon).deg # takes ~ 2500 s for 6 hr observation
-
-    # assuming that the Earth rotation is constant within a second.
-    """ previous version
-    ut1 = Time(np.arange(st.unix, et.unix+1, 1.), format='unix')
-    ut = [ut1.unix[i] + np.arange(fsample)*(ut1.unix[i+1]-ut1.unix[i])/fsample for i in range(len(ut1)-1)]
-    ut = np.array(ut).flatten()
-    lst1 = ut1.sidereal_time('apparent', par.lon).deg
-    lst = [lst1[i] + np.arange(fsample)*(lst1[i+1]-lst1[i])/fsample for i in range(len(lst1)-1)]
-    lst = np.array(lst).flatten()
-    """
-
-    log.info('Making time stamps')
-    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
-    #ut = np.arange(0, int(et.unix-st.unix), 1./fsample)
-
-    ut_1s = ut[::fsample]
-    lst_1s = gbdir.unixtime2lst(ut_1s)
-    f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
-    lst = f(ut)
-
-
-    ######################################
-    # define GB rotation (azimuth) angle 
-    ######################################
-
-    az0 = 0
-    t = ut-ut[0]
-    az = (az0 + t * param.omega_gb) % 360
-
-
-    ##########################################
-    # get Rotation matrix & rotate
-    ##########################################
-
-    theta = param.pixinfo['theta']
-    phi = param.pixinfo['phi']
-
-    v_arr = hp.ang2vec(np.radians(theta), np.radians(phi))
-    log.info(v_arr.shape)
-    
-    del(theta); del(phi)
-    #pangle = np.radians(22.5)
-    #pv = np.array((np.cos(pangle), np.sin(pangle), pangle*0)).T
-
-    log.info ('calculating rotation matrix ')
-    rmat = gbdir.Rot_matrix(az=az, lst=lst)
-
-    log.info ('Rotate vectors')
-
-    v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat)
-    v_zen = gbdir.Rotate(v_arr=(0,0,1), rmat=rmat)
-    ra, dec = hp.vec2ang(v_zen, lonlat=True) 
-
-    log.debug('v_obs.shape: {}'.format(v_obs.shape))
-    v_obs = np.transpose(v_obs, (2,1,0))
-    log.debug('v_obs.shape: {}'.format(v_obs.shape))
-
-    #log.info ('Rotate polarization vectors')
-    #pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat)
-
-    #log.info ('Calculating polarization directions')
-    psi_obs = np.zeros(len(v_arr)) #gbdir.angle_from_meridian_2D(v_obs, pv_obs)
-
-
-    #########################################
-    # TOD from map_in
-    #########################################
-
-    npix = len(map_in[0])
-    nside = hp.npix2nside(npix) 
-    nobs = len(v_obs)
-
-    log.info('getting npix from vectors ')
-
-    I_obs = []
-    Q_obs = []
-    U_obs = []
-
-    st = time.time()
-
-    pix_obs_arr = []
-
-    for vi in v_obs:
-        #x = vi[0]
-        #y = vi[1]
-        #z = vi[2]
-        #pix_obs_arr.append(hp.vec2pix(nside, x, y, z))
-        pix_obs_arr.append(fnc(vi))
-
-    log.debug('Time for the for loops: {}'.format(time.time() - st))
-
-    st = time.time()
-    p = Pool(4)
-
-    pix_obs_arr2 = p.map(fnc, v_obs)
-
-    log.debug('Time for the for mp map: {}'.format(time.time() - st))
-
-    for pix_obs in pix_obs_arr:
-        I_obs.append(map_in[0][pix_obs])
-        Q_obs.append(map_in[1][pix_obs])
-        U_obs.append(map_in[2][pix_obs])
-
-
-    I_obs = np.array(I_obs).T
-    Q_obs = np.array(Q_obs).T
-    U_obs = np.array(U_obs).T
-
-    log.info('getting tods')
-
-    tod_I = np.array(I_obs)
-    tod_Q = np.array(Q_obs*np.cos(2*psi_obs) - U_obs*np.sin(2*psi_obs))
-    tod_U = np.array(Q_obs*np.sin(2*psi_obs) + U_obs*np.cos(2*psi_obs))
-
-    log.info('TOD simulation end')
-
-    return ut, dec, ra, tod_I, tod_Q, tod_U
-
-
 def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
                               module_id=None, nside_hitmap=False, 
                               convention_LT=True):
     """ Simulation module for an observation with a focal plane. 
+    Writes tode by module.
     
     Parameters
     ----------
@@ -1061,8 +882,6 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     tod_Ip = Ip_src[pix_obs]
     tod_psi = psi_src[pix_obs]
 
-    #tod_Ix = 0.5 * tod_I + tod_Ip * np.cos(tod_psi - psi_obs)**2
-    #tod_Iy = 0.5 * tod_I + tod_Ip * np.sin(tod_psi - psi_obs)**2 
     tod_Ix = 0.5 * tod_I + tod_Ip * np.cos(tod_psi - psi_obs)**2
     tod_Iy = 0.5 * tod_I + tod_Ip * np.sin(tod_psi - psi_obs)**2 
     del(tod_I); del(tod_Ip); del(psi_obs)
@@ -1094,16 +913,12 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
     log.info('TOD simulation end')
 
-    #return ut, el, az, dec, ra, \
-    #       tod_I_mod, tod_Q_mod, tod_U_mod, \
-    #       module_id_set, hitmap
-
     return ut, el, az, dec, ra, psi_equ, \
            tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod,\
            module_id_set, hitmap
 
 
-def wr_tod2fits(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
+def wr_tod2fits_TQU(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     """ Write tod in fits file.
     
     Parameters
@@ -1418,7 +1233,7 @@ def scp_file(local_path, remote_path, remove=False):
 
 def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits', 
                       module_id=None, fprefix='GBtod', outpath='.', 
-                      nside_hitmap=False, transferFile=False):
+                      nside=None, nside_hitmap=False, transferFile=False):
     """ Function for a parallelization of the tod simulation.
     
     Parameters
@@ -1442,6 +1257,9 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
     outpath : string
         Path to save the data.
         Defalut is '.' (current directory). 
+    nside : int
+        Nside of input map.
+        Default is None.
     nside_hitmap : int
         Nside of the N-hit maps. 
         If False, N-hit maps are not going to be calculated. 
@@ -1453,6 +1271,8 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     log = set_logger(mp.current_process().name)
     map_in = hp.read_map(mapname, field=(0,1,2), verbose=False)
+    if not nside == None:
+        map_in = hp.ud_grade(map_in, nside_out=nside) 
 
     res = sim_tod_focalplane_module(t1, t2, map_in=map_in, fsample=fsample, 
                                     module_id=module_id, nside_hitmap=nside_hitmap)
@@ -1476,15 +1296,11 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                     'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
                    }
 
-        opath_mod = os.path.join(opath, 'module_{}'.format(nmod))
+        opath_mod = os.path.join(opath, 'module_{}'.format(mod_idx))
         mkdir(opath_mod)
             
         ofname = os.path.join(opath_mod, fname)
         wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], mod_idx, **aheaders)
-
-        ofname = os.path.join(opath_mod, fname)
-
-        wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], nmodout[i], **aheaders)
 
         if (transferFile):
             dfname = ofname
@@ -1498,9 +1314,8 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
         if (os.path.isfile(hfname)):
             log.warning('{} has been overwritten.'.format(hfname))
-            hp.write_map(hfname, hitmap, column_names=cnames, overwrite=True)
-        else:
-            hp.write_map(hfname, hitmap, column_names=cnames, overwrite=False)
+
+        hp.write_map(hfname, hitmap, column_names=cnames, overwrite=True)
 
         log.info('N-hit map is written in {}.'.format(hfname))
 
@@ -1743,7 +1558,7 @@ def GBsim_hpc_parallel_time(
         t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
         dtsec=600, fsample=10, mapname='cmb_rseed42.fits', 
         module_id=None, fprefix='GBtod_CMB', outpath=None,
-        nside_hitmap=False, nproc=8):
+        nside=None, nside_hitmap=False, nproc=8):
     """ GroundBIRD simulation module for TOD. It is parallelized 
     over the time. 
 
@@ -1760,7 +1575,7 @@ def GBsim_hpc_parallel_time(
         Sampling frequency in sps.
     mapname : string
         The filename of the input map.
-        Default is 'cmb-rseed42.fits'.
+        Default is 'cmb_rseed42.fits'.
     module_id : int or sequence of int
         Module indicies to be used. 
         If None, all the modules are used. 
@@ -1771,6 +1586,9 @@ def GBsim_hpc_parallel_time(
     outpath : string
         Path to save the data.
         Defalut is '.' (current directory). 
+    nside : int
+        Nside of input map.
+        Default is None.
     nside_hitmap : int
         Nside of the N-hit maps. 
         If False, N-hit maps are not going to be calculated. 
