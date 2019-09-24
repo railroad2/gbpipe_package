@@ -15,7 +15,7 @@ def doit():
     #cmbname   = "/home/klee_ext/kmlee/maps/cmb_rseed42_0_5deg.fits"
     cmbname   = "/home/klee_ext/kmlee/maps/cmb_toy.fits"
     fg145name = "/home/klee_ext/kmlee/maps/fg145comb_Ns1024_fwhm0_5.fits"
-    fg220name = "/home/klee_ext/kmlee/maps/fg225comb_Ns1024_fwhm0_5.fits"
+    fg220name = "/home/klee_ext/kmlee/maps/fg220comb_Ns1024_fwhm0_5.fits"
     dt = datetime.datetime.now()
     nproc = 16
     nside = 1024

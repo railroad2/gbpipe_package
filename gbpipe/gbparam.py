@@ -188,8 +188,8 @@ class GBparam:
         import matplotlib.lines as mline
         ax=plt.subplot(111)
         ax.axis('equal')
-        x = self.pixinfo['Yfoc']  # due to the axis definition in LT, x and y are exchanged.
-        y = -1.0*self.pixinfo['Xfoc']
+        x = self.pixinfo['Xfoc']  # due to the axis definition in LT, x and y are exchanged.
+        y = self.pixinfo['Yfoc']
         #sc=ax.scatter(x, y, s=80, marker='o', 
         #              #edgecolors=self.pixinfo['mod'], 
         #              edgecolors='k',
@@ -229,13 +229,21 @@ class GBparam:
     def plot_focalplane(self):
         """ Plot focal plane. """
         import pylab as plt
-        x = -1*self.pixinfo['Yfoc']  # due to the axis definition in LT, x and y are exchanged.
-        y = self.pixinfo['Xfoc']
 
-        plt.scatter(x, y)
+        x = self.pixinfo['Xfoc']  # due to the axis definition in LT, x and y are exchanged.
+        y = self.pixinfo['Yfoc']
+        c = np.arange(len(x))
+    
+        plt.grid()
+        plt.arrow(0, 0, 1, 0, head_width=0.1)
+        plt.arrow(0, 0, 0, 1, head_width=0.1)
+        plt.annotate("X", xy=(0,0), xytext=(1,0))
+        plt.annotate("Y", xy=(0,0), xytext=(0,1))
+        plt.scatter(x, y, c=c)
         plt.axis('equal')
 
-        #plt.colorbar(sc) 
+        plt.colorbar() 
+
         plt.show()
 
     def plot_beam(self):
@@ -248,9 +256,11 @@ class GBparam:
         phi = np.radians(self.pixinfo['phi'])
         x = np.sin(theta)*np.cos(phi)
         y = np.sin(theta)*np.sin(phi)
+        c = np.arange(len(x))
 
         sc=ax.scatter(x, y, s=80, marker='o', 
                       #edgecolors=self.pixinfo['mod'], 
+                      c=c,
                       edgecolors='k',
                       facecolors='none',
                       linewidth=0.5)
@@ -293,7 +303,7 @@ class GBparam:
         phi = np.radians(self.pixinfo['phi']-90)
         theta = (self.pixinfo['theta'])
         sc=ax.scatter(phi, theta,  
-                      c=self.pixinfo['mod'], 
+                      c=self.pixinfo['npix'], 
                       s=70)
                       #c=(pix['omtfoc']-pix['omtffr']) )
                       #s=abs(pix['omtfoc']-pix['omtffr'])*100)

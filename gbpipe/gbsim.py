@@ -227,7 +227,6 @@ def sim_obs_singlepix(t1, t2, fsample=1000):
     t = ut-ut[0]
     az = (az0 + t * par.omega_gb) % 360
 
-
     ##########################################
     # get Rotation matrix & rotate z vector
     ##########################################
@@ -310,7 +309,6 @@ def sim_obs_focalplane(t1, t2, fsample=1000):
     az = (az0 + t * par.omega_gb) % 360
     log.debug('calculating time for time stamp and lst:', time.time() - t0)
 
-
     #######################################
     # get Rotation matrix & rotate focalplane
     #######################################
@@ -318,15 +316,13 @@ def sim_obs_focalplane(t1, t2, fsample=1000):
     t0 = time.time()
 
     theta = par.pixinfo['theta']
-    phi =par.pixinfo['phi']
+    phi = par.pixinfo['phi']
     v = hp.ang2vec(np.radians(theta), np.radians(phi))
     rmat = gbdir.Rot_matrix(az=az, lst=lst)
     v_obs = gbdir.Rotate(v_arr=v, rmat=rmat) 
     v_obs = np.transpose(v_obs, (2,1,0))
 
     log.debug('time for rotation:', time.time() - t0)
-
-
 
     #########################################
     # N-hit maps
@@ -444,8 +440,6 @@ def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
     f = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
     lst = f(ut)
 
-
-
     ######################################
     # define GB rotation (azimuth) angle 
     ######################################
@@ -453,7 +447,6 @@ def sim_tod_singlepix(t1, t2, fsample=1000, map_in=None, rseed=42):
     az0 = 0
     t = ut-ut[0]
     az = (az0 + t * par.omega_gb) % 360
-
 
     ##########################################
     # get Rotation matrix & rotate
