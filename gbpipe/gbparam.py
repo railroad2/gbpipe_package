@@ -235,13 +235,12 @@ class GBparam:
         c = np.arange(len(x))
     
         plt.grid()
-        plt.arrow(0, 0, 1, 0, head_width=0.1)
-        plt.arrow(0, 0, 0, 1, head_width=0.1)
-        plt.annotate("X", xy=(0,0), xytext=(1,0))
-        plt.annotate("Y", xy=(0,0), xytext=(0,1))
+        plt.arrow(0, 0, 1, 0)
+        plt.arrow(0, 0, 0, 1)
+        plt.annotate("x", xy=(0, 0), xytext=(1, 0))
+        plt.annotate("y", xy=(0, 0), xytext=(0, 1))
         plt.scatter(x, y, c=c)
         plt.axis('equal')
-
         plt.colorbar() 
 
         plt.show()
@@ -300,7 +299,7 @@ class GBparam:
         """ Plot beam on the sky on polar coordinate. """ 
         ax=plt.subplot(111, projection='polar'); 
         ax.set_theta_zero_location("N")
-        phi = np.radians(self.pixinfo['phi']-90)
+        phi = np.radians(self.pixinfo['phi'])
         theta = (self.pixinfo['theta'])
         sc=ax.scatter(phi, theta,  
                       c=self.pixinfo['npix'], 
