@@ -62,8 +62,8 @@ class GBparam:
     """
     tilt          = 30.
     el            = 90. - 30.
-    lat           = (28. + 16./60 +  7./3600)
-    lon           = -1 * (16. + 36./60 + 20./3600)
+    lat           = (28. + 16./60 +  7./3600) # Teide observatory
+    lon           = -1 * (16. + 36./60 + 20./3600) # Teide observatory
     fsample       = 1200         # sample/s
     omega_gb      = 360. / 3     # degree/s
     omega_earth   = 360. / 86164 # degree/s
