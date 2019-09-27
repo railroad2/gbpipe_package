@@ -64,6 +64,7 @@ class GBparam:
     el            = 90. - 30.
     lat           = (28. + 16./60 +  7./3600) # Teide observatory
     lon           = -1 * (16. + 36./60 + 20./3600) # Teide observatory
+    psi           = 88
     fsample       = 1200         # sample/s
     omega_gb      = 360. / 3     # degree/s
     omega_earth   = 360. / 86164 # degree/s
