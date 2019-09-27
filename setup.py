@@ -9,7 +9,7 @@ dependency_links = []
 setup(
     name = 'gbpipe',
     version = '0.0',
-    description = 'Package for GroundBIRD pipeline'
+    description = 'Package for GroundBIRD pipeline',
     author = 'Kyungmin Lee',
     author_email = 'kmlee@hep.korea.ac.kr',
     packages = find_packages(),

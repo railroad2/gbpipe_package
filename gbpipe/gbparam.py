@@ -60,7 +60,7 @@ class GBparam:
         dummy data with one pixel is used. 
     pixinfo : pixel info
     """
-    tilt          = 30.
+    #tilt          = 30.
     el            = 90. - 30.
     lat           = (28. + 16./60 +  7./3600) # Teide observatory
     lon           = -1 * (16. + 36./60 + 20./3600) # Teide observatory
@@ -126,7 +126,8 @@ class GBparam:
         cpath   = fname
         cp.read(cpath)
 
-        self.tilt           = float(self.get_option(cp, 'GB', 'tilt'))
+        #self.tilt           = float(self.get_option(cp, 'GB', 'tilt'))
+        self.el             = float(self.get_option(cp, 'GB', 'el'))
         self.lat            = float(self.get_option(cp, 'GB', 'lat'))
         self.lon            = float(self.get_option(cp, 'GB', 'lon'))
         self.rot_speed      = float(self.get_option(cp, 'GB', 'rot_speed'))
@@ -135,7 +136,6 @@ class GBparam:
         self.fname_pixel    = str(self.get_option(cp, 'GB', 'fname_pixel')).replace('MODULE_PATH', DIRNAME)
         self.omega_earth    = float(eval(self.get_option(cp, 'others', 'omega_earth')))
 
-        self.EL             = 90. - self.tilt
         self.omega_gb       = 360. * self.rot_speed/60.
 
     def load_pixelInfo(self, fname=fname_pixel):
@@ -162,8 +162,8 @@ class GBparam:
         print('-'*50)
         print('GroundBIRD parameters')
         print('-'*50)
-        print('Tilt      = ', self.tilt, '(deg)')
-        print('Elevation = ', self.EL, '(deg)')
+        #print('Tilt      = ', self.tilt, '(deg)')
+        print('Elevation = ', self.el, '(deg)')
         print('Latitude  = ', self.lat, '(deg)')
         print('Longitude = ', self.lon, '(deg)')
         print('sampling frequency = ', self.fsample, '(sample/s)')
