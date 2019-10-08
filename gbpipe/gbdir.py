@@ -93,6 +93,9 @@ def unixtime2lst_1s(unixtime, lon=GBparam.lon, deg=True):
     lst : float
         Local sidereal time in degree or radian.
     """
+    if not hasattr(unixtime, '__len__'):
+        return unixtime2lst(unixtime, lon=lon, deg=deg)
+
     ut_min = min(unixtime)
     ut_max = max(unixtime)+1.0
 
