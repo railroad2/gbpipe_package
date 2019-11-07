@@ -8,7 +8,7 @@ import numpy as np
 import healpy as hp
 import pylab as plt
 
-import paramiko
+#import paramiko
 import multiprocessing as mp
 from scipy.interpolate import interp1d
 
@@ -1198,7 +1198,7 @@ def wr_tod2fits_noise(fname, ut, noise, module_id, **aheaders):
 
     return
 
-
+'''
 def scp_file(local_path, remote_path, remove=False):
     """ Copy the files to criar. """
     log = set_logger(mp.current_process().name)
@@ -1222,7 +1222,7 @@ def scp_file(local_path, remote_path, remove=False):
         log.info('File {} has been removed.'.format(local_path))
 
     return
-
+'''
 
 def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits', 
                       module_id=None, fprefix='GBtod', outpath='.', 
