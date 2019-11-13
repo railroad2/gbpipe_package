@@ -1,9 +1,12 @@
 import numpy as np
 import healpy as hp
 import camb
-import xpol
 from .utils import dl2cl, print_warning
 
+try:
+    import xpol
+except:
+    xpol = camb
 
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
                   'neutrino_hierarchy', 'num_massive_nutrinos',
