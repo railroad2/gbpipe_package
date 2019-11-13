@@ -2,6 +2,6 @@
 
 ## installation
     $ python3 setup.py install 
-    or
+or
     $ python3 setup.py install --user
     
