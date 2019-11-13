@@ -6,5 +6,5 @@
     or
     $ python3 setup.py install --user
 
-## tests
+## For test
 Modules for tests are contained in gbpipe_package/tests/.
