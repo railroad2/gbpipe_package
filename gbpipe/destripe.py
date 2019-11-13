@@ -35,7 +35,6 @@ def polyfit_for_rej(x, y, deg=0):
 
 
 def destripe_poly(data, fitlength, deg=0, return_baseline=False):
-
     Nslice = np.int(np.ceil(len(data) / fitlength))
     baseline = []
 
@@ -72,9 +71,9 @@ def destripe_fft(data, cutfreq, filter_type='RECT', return_baseline=False):
     plt.plot(data_destriped)
 
     if return_baseline:
-        return data_destriped, baseline
+        return data_destriped.real, baseline.real
     else:
-        return data_destriped
+        return data_destriped.real
 
 
     
