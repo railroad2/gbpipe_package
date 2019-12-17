@@ -1,19 +1,13 @@
 import numpy as np
 import healpy as hp
 import camb
-<<<<<<< HEAD
-try:
-    import xpol
-except ModuleNotFoundError:
-    print ('xpol is not found')
 
-=======
->>>>>>> 788d76b2582145ca220472eb967fde46c3d326fd
 from .utils import dl2cl, print_warning
 
 try:
     import xpol
-except:
+except ModuleNotFoundError:
+    print ('xpol is not found. Using camb instead.')
     xpol = camb
 
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
