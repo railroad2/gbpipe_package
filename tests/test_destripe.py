@@ -10,7 +10,7 @@ from gbpipe import gbsim
 from gbpipe import destripe # module under test
 
 class destripe_test(unittest.TestCase):
-    nsample = 600*1000 # 10 min data with 1 ksps sampling
+    nsample = 3600*1000 # 1 min data with 1 ksps sampling
     wnl = 1 # white noise level
     fknee = 1 # knee frequency
     data = gbsim.sim_noise1f(nsample, wnl, fknee, alpha=2)
@@ -44,6 +44,7 @@ class destripe_test(unittest.TestCase):
         plt.figure()
         plt.plot(x, y)
         plt.plot(x, np.array(yfits).T)
+        plt.title('polyfit_for_rej')
     
     def test4_destripe_poly(self):
         dd, bl = destripe.destripe_poly(self.data, 1000, deg=0, return_baseline=True)
@@ -51,7 +52,17 @@ class destripe_test(unittest.TestCase):
         plt.plot(self.data)
         plt.plot(dd)
         plt.plot(bl)
+        plt.title('destripe_poly')
         
+
+    def test4_destripe_poly_1(self):
+        dd, bl = destripe.destripe_poly(self.data, 100000, deg=10, return_baseline=True)
+        plt.figure()
+        plt.plot(self.data)
+        plt.plot(dd)
+        plt.plot(bl)
+        plt.title('destripe_poly_1')
+  
 
     def test5_destripe_fft(self):
         dd, bl = destripe.destripe_fft(self.data, self.fknee, return_baseline=True)
@@ -60,6 +71,7 @@ class destripe_test(unittest.TestCase):
         plt.plot(self.data)
         plt.plot(dd)
         plt.plot(bl)
+        plt.title('destripe_fft')
         
         plt.show()
 

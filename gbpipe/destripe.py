@@ -1,7 +1,6 @@
 import time
 
 import numpy as np
-import pylab as plt
 
 from scipy.fftpack import fft, ifft
 
@@ -67,13 +66,10 @@ def destripe_fft(data, cutfreq, filter_type='RECT', return_baseline=False):
     baseline = tod_ifft(dataf * lpf)
     data_destriped = tod_ifft(dataf * hpf)
 
-    plt.figure()
-    plt.plot(data_destriped)
-
     if return_baseline:
-        return data_destriped, baseline
+        return data_destriped.real, baseline.real
     else:
-        return data_destriped
+        return data_destriped.real
 
 
     
