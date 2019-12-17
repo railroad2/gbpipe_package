@@ -1,7 +1,11 @@
 import numpy as np
 import healpy as hp
 import camb
-import xpol
+try:
+    import xpol
+except ModuleNotFoundError:
+    print ('xpol is not found')
+
 from .utils import dl2cl, print_warning
 
 

@@ -35,7 +35,6 @@ def polyfit_for_rej(x, y, deg=0):
 
 
 def destripe_poly(data, fitlength, deg=0, return_baseline=False):
-
     Nslice = np.int(np.ceil(len(data) / fitlength))
     baseline = []
 
