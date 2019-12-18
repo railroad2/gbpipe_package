@@ -64,7 +64,7 @@ class GBparam:
     el            = 90. - 30.
     lat           = (28. + 16./60 +  7./3600) # Teide observatory
     lon           = -1 * (16. + 36./60 + 20./3600) # Teide observatory
-    psi           = 88
+    psi           = 84
     fsample       = 1200         # sample/s
     omega_gb      = 360. / 3     # degree/s
     omega_earth   = 360. / 86164 # degree/s
@@ -231,7 +231,7 @@ class GBparam:
         """ Plot focal plane. """
         import pylab as plt
 
-        x = self.pixinfo['Xfoc']  # due to the axis definition in LT, x and y are exchanged.
+        x = self.pixinfo['Xfoc']  
         y = self.pixinfo['Yfoc']
         c = np.arange(len(x))
     
@@ -252,7 +252,7 @@ class GBparam:
         rect = [0.1, 0.1, 0.8, 0.8]
         ax = fig.add_axes(rect)#plt.subplot(111)
         ax.axis('equal')
-        theta = np.radians(self.pixinfo['theta'])  # due to the axis definition in LT, x and y are exchanged.
+        theta = np.radians(self.pixinfo['theta'])  
         phi = np.radians(self.pixinfo['phi'])
         x = np.sin(theta)*np.cos(phi)
         y = np.sin(theta)*np.sin(phi)

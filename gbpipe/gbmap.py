@@ -1,6 +1,13 @@
 import numpy as np
 import healpy as hp
 
+def makegbmask(nside, low, high):
+    mask = np.zeros(12*nside**2)
+    npix = hp.query_strip(nside, np.radians(low), np.radians(high))
+    mask[npix] = 1
+    return mask
+    
+
 def gbmask_cut_edge(map_in, angle, nside_out=None, deg=True):
     nside_in = hp.npix2nside(len(map_in))
     if nside_out is None:
