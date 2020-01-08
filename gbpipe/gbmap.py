@@ -1,6 +1,7 @@
 import numpy as np
 import healpy as hp
 
+
 def makegbmask(nside, low, high):
     mask = np.zeros(12*nside**2)
     npix = hp.query_strip(nside, np.radians(low), np.radians(high))
