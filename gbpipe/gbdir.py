@@ -169,9 +169,12 @@ def unixtime2lst_fast(unixtime, Nds=1000, lon=GBparam.lon, deg=True):
         Local sidereal time in degree or radian.
     """
     ut_ds = unixtime[::Nds]
-    lst_ds = unixtime2lst(ut_ds, lon=lon, deg=deg) 
+    lst_ds = unixtime2lst(ut_ds, lon=lon, deg=False) 
+    lst_ds = np.unwrap(lst_ds)
     f = interp1d(ut_ds, lst_ds, fill_value='extrapolate')
     lst = f(unixtime)
+    if deg:
+        lst = np.degrees(lst)
 
     return lst
 
