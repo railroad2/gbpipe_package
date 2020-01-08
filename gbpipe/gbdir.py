@@ -147,6 +147,35 @@ def unixtime2lst_linear(unixtime, lon=GBparam.lon, deg=True):
     return lst
 
 
+def unixtime2lst_fast(unixtime, Nds=1000, lon=GBparam.lon, deg=True):
+    """ Convert unixtime to local sidereal time using astropy.time.
+    Down samples the unixtime and assume that the Earth rotation is constant
+    between each samples
+
+    Parameters
+    ----------
+    unixtime : float 
+        Unixtime.
+    lon : float 
+        Longitude in degree.
+        Default is GBparam.lon.
+    deg : bool
+        If True, the result will be in degrees, or radians otherwise. 
+        Default is True.
+
+    Returns 
+    -------
+    lst : float
+        Local sidereal time in degree or radian.
+    """
+    ut_ds = unixtime[::Nds]
+    lst_ds = unixtime2lst(ut_ds, lon=lon, deg=deg) 
+    f = interp1d(ut_ds, lst_ds, fill_value='extrapolate')
+    lst = f(unixtime)
+
+    return lst
+
+
 def jd2lst(jd, lon=GBparam.lon, deg=True):
     """ Convert Julian day to local sidereal time using astropy.time.
 
