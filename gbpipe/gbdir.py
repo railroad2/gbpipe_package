@@ -173,7 +173,7 @@ def unixtime2lst_fast(unixtime, Nds=1000, lon=GBparam.lon, deg=True):
     lst_ds = np.unwrap(lst_ds)
     f = interp1d(ut_ds, lst_ds, fill_value='extrapolate')
     lst = f(unixtime)
-    lst = lst % np.pi
+    lst = lst % (2*np.pi)
     if deg:
         lst = np.degrees(lst)
 
