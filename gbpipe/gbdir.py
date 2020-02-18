@@ -43,7 +43,7 @@ def unixtime2jd(unixtime):
     return jd
 
 
-def unixtime2lst(unixtime, lon=GBparam.lon, deg=True):
+def unixtime2lst(unixtime, lon=GBparam.lon, deg=True, kind='mean'):
     """ Convert unixtime to local sidereal time using astropy.time.
 
     Parameters
@@ -63,11 +63,11 @@ def unixtime2lst(unixtime, lon=GBparam.lon, deg=True):
         Local sidereal time in degree or radian.
     """
     t = Time(unixtime, format='unix')
-    
+
     if (deg==True):
-        lst = t.sidereal_time('apparent', longitude=str(lon)+'d').degree
+        lst = t.sidereal_time(kind, longitude=str(lon)+'d').degree
     else: #returns LST in hourangle
-        lst = t.sidereal_time('apparent', longitude=str(lon)+'d').value
+        lst = t.sidereal_time(kind, longitude=str(lon)+'d').value
 
     return lst
 
@@ -147,7 +147,7 @@ def unixtime2lst_linear(unixtime, lon=GBparam.lon, deg=True):
     return lst
 
 
-def unixtime2lst_fast(unixtime, Nds=1000, lon=GBparam.lon, deg=True):
+def unixtime2lst_fast(unixtime, Nds=100, lon=GBparam.lon, deg=True):
     """ Convert unixtime to local sidereal time using astropy.time.
     Down samples the unixtime and assume that the Earth rotation is constant
     between each samples
@@ -169,11 +169,11 @@ def unixtime2lst_fast(unixtime, Nds=1000, lon=GBparam.lon, deg=True):
         Local sidereal time in degree or radian.
     """
     ut_ds = unixtime[::Nds]
-    lst_ds = unixtime2lst(ut_ds, lon=lon, deg=False) 
-    lst_ds = np.unwrap(lst_ds)
+    lst_ds = unixtime2lst(ut_ds, lon=lon, deg=True, kind='mean') 
+    lst_ds = np.unwrap(np.radians(lst_ds))
     f = interp1d(ut_ds, lst_ds, fill_value='extrapolate')
     lst = f(unixtime)
-    lst = lst % (2*np.pi)
+    lst = lst % (2*np.pi) 
     if deg:
         lst = np.degrees(lst)
 
