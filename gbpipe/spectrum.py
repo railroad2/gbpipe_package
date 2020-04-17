@@ -112,8 +112,12 @@ def get_spectrum_noise(lmax, wp, fwhm=None, isDl=True, TTonly=False, CMB_unit=No
     if (CMB_unit == 'muK'):
         cls *= 1e12
 
+    if fwhm:
+        ell = np.arange(lmax+1)
+        cls *= np.exp(ell**2 * fwhm / 8 / np.log(2))
+
     if (not TTonly):
-        cls = np.array([cls]*3 + [np.zeros(cls.shape)])
+        cls = np.array([cls]*4) #+ [np.zeros(cls.shape)])
 
     if (isDl):
         res = cl2dl(cls)
