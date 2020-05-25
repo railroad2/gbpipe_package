@@ -2,7 +2,7 @@ import numpy as np
 import healpy as hp
 import camb
 
-from .utils import dl2cl, print_warning
+from .utils import cl2dl, dl2cl, print_warning
 
 try:
     import xpol
@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     xpol = camb
 
 args_cosmology = ['H0', 'cosmomc_theta', 'ombh2', 'omch2', 'omk', 
-                  'neutrino_hierarchy', 'num_massive_nutrinos',
+                  'neutrino_hierarchy', 'num_massive_neutrinos',
                   'mnu', 'nnu', 'YHe', 'meffsterile', 'standard_neutrino_neff', 
                   'TCMB', 'tau', 'deltazrei', 'bbnpredictor', 'theta_H0_range'] 
 
@@ -114,7 +114,7 @@ def get_spectrum_noise(lmax, wp, fwhm=None, isDl=True, TTonly=False, CMB_unit=No
 
     if fwhm:
         ell = np.arange(lmax+1)
-        cls *= np.exp(ell**2 * fwhm / 8 / np.log(2))
+        cls *= np.exp(ell**2 * fwhm * (np.pi/10800)**2 / 8 / np.log(2))
 
     if (not TTonly):
         cls = np.array([cls]*4) #+ [np.zeros(cls.shape)])
