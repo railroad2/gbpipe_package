@@ -1632,6 +1632,7 @@ def GBsim_hpc_parallel_time(
         if len(procs_running) < nmaxproc:
             procs_running.append(procs[0])
             procs[0].start()
+            time.sleep(1)
             log.info ('{} has been started'.format(procs[0].name))
             procs.remove(procs[0])
         else:
