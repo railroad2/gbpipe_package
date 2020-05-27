@@ -19,13 +19,7 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
                   'pivot_tensor', 'parameterization']
 
 
-def get_spectrum_camb(lmax, 
-                      isDl=False, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
-                      ini_file=None,
-                      **kwargs):
-    """
-    """
-   
+def arg2dict(**kwargs):
     ## arguments to dictionaries
     kwargs_cosmology={}
     kwargs_InitPower={}
@@ -38,9 +32,18 @@ def get_spectrum_camb(lmax,
         else:
             print_warning('Wrong keyword: ' + key)
 
-    ## for camb > 1.0
-    if not ('H0' in kwargs_cosmology.keys()):
-        kwargs_cosmology['H0'] = 67.5
+    return kwargs_cosmology, kwargs_InitPower
+
+
+def get_spectrum_camb(lmax, 
+                      isDl=False, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
+                      ini_file=None,
+                      **kwargs):
+    """
+    """
+   
+    kwargs_cosmology, kwargs_InitPower = arg2dict(**kwargs)
+
 
     ## call camb
     if ini_file is None:
@@ -48,6 +51,7 @@ def get_spectrum_camb(lmax,
     else:
         pars = camb.read_ini(ini_file)
 
+    kwargs_cosmology['H0'] = pars.H0
     pars.set_cosmology(**kwargs_cosmology)
     pars.InitPower.set_params(**kwargs_InitPower)
     pars.WantTensors = True
@@ -57,19 +61,19 @@ def get_spectrum_camb(lmax,
     raw_cl = np.logical_not(isDl)
     if (TTonly):
         if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
+            cls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
         else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
+            cls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
     else: 
         if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
+            cls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
         else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
+            cls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
 
     if (cambres):
-        return res, results
+        return cls, results
     else:
-        return res
+        return cls 
     
 
 def get_spectrum_const(lmax, isDl=True):
