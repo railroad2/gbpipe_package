@@ -347,5 +347,7 @@ def mkdir(path):
         if not os.path.isdir(cpath):
             os.mkdir(cpath)
 
+    print (f'Directory {path} has been made')
+
     return 
 

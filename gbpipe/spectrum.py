@@ -20,7 +20,8 @@ args_InitPower = ['As', 'ns', 'nrun', 'nrunrun', 'r', 'nt', 'ntrun', 'pivot_scal
 
 
 def get_spectrum_camb(lmax, 
-                      isDl=True, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
+                      isDl=False, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
+                      ini_file=None,
                       **kwargs):
     """
     """
@@ -28,13 +29,10 @@ def get_spectrum_camb(lmax,
     ## arguments to dictionaries
     kwargs_cosmology={}
     kwargs_InitPower={}
-    wantTensor = False
 
     for key, value in kwargs.items():  # for Python 3, items() instead of iteritems()
         if key in args_cosmology: 
             kwargs_cosmology[key]=value
-            if key == 'r':
-                wantTensor = True
         elif key in args_InitPower:
             kwargs_InitPower[key]=value
         else:
@@ -45,30 +43,28 @@ def get_spectrum_camb(lmax,
         kwargs_cosmology['H0'] = 67.5
 
     ## call camb
-    pars = camb.CAMBparams()
+    if ini_file is None:
+        pars = camb.CAMBparams()
+    else:
+        pars = camb.read_ini(ini_file)
+
     pars.set_cosmology(**kwargs_cosmology)
     pars.InitPower.set_params(**kwargs_InitPower)
     pars.WantTensors = True
+
     results = camb.get_results(pars)
 
+    raw_cl = np.logical_not(isDl)
     if (TTonly):
         if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
+            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
         else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T[0]
+            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T[0]
     else: 
         if unlensed:
-            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
+            dls = results.get_unlensed_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
         else:
-            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit).T
-
-    #dls = dls * pars.TCMB**2
-
-    if (isDl):
-        res = dls
-    else:
-        cls = dl2cl(dls)
-        res = cls
+            dls = results.get_total_cls(lmax=lmax, CMB_unit=CMB_unit, raw_cl=raw_cl).T
 
     if (cambres):
         return res, results
