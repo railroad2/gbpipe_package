@@ -1285,7 +1285,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
         log.warning(f'All the files exists.') 
         return
 
-    map_in = hp.read_map(mapname, field=(0,1,2), verbose=False)
+    map_in = hp.read_map(mapname, field=(0,1,2), verbose=False, dtype=None)
     if nside is None:
         nside = int(np.sqrt(len(map_in[0])/12))
     else:
