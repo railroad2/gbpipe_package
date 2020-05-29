@@ -689,7 +689,7 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
         Nside of N-hit maps to be generated.
         If False, N-hit map will not be generated.
     convention_LT : bool
-        If True, the psi angles are defined as LightTools convention. 
+        If True, the psi angles are defined in LightTools convention. 
         Otherwise, the psi angles are defined in spherical coordinates.  
     
     Returns
@@ -1263,6 +1263,28 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
     """
 
     log = set_logger(mp.current_process().name)
+
+    runflag = 0
+    if module_id is None:
+        module_id = np.arange(6)+1
+
+    opath = os.path.join(outpath, t1[:10], fprefix)
+
+    for i, mod_idx in enumerate(np.array(module_id).flatten()):
+        fname = f'{fprefix}_mod{mod_idx}_{t1}_{t2}.fits'
+        opath_mod = os.path.join(opath, f'module_{mod_idx}')
+        ofname = os.path.join(opath_mod, fname)
+        if os.path.isfile(ofname):
+            log.warning(f'The file {fname} exists.')
+            if os.stat(ofname).st_size < 400809600:
+                log.warning(f'However, the size of {fname} is not correct. Running the simulation.')
+        else:
+            runflag = 1
+    
+    if runflag==0:
+        log.warning(f'All the files exists.') 
+        return
+
     map_in = hp.read_map(mapname, field=(0,1,2), verbose=False)
     if nside is None:
         nside = int(np.sqrt(len(map_in[0])/12))
@@ -1276,10 +1298,8 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     nmodpixs = [np.shape(tod)[1] for tod in tod_Ix]
 
-    opath = os.path.join(outpath, t1[:10], fprefix)
-
     for i, mod_idx in enumerate(nmodout):
-        fname = '{}_mod{}_{}_{}.fits'.format(fprefix, mod_idx, t1, t2)
+        fname = f'{fprefix}_mod{mod_idx}_{t1}_{t2}.fits'
         aheaders = {'FNAME'   : fname, 
                     'CTIME'   : (Time.now().isot, 'File created time'),
                     'DATATYPE': 'TODSIM',
@@ -1292,7 +1312,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                     'NMODPIXS': (str(nmodpixs[i]), 'Number of pixels in each module'),
                    }
 
-        opath_mod = os.path.join(opath, 'module_{}'.format(mod_idx))
+        opath_mod = os.path.join(opath, f'module_{mod_idx}')
         mkdir(opath_mod)
             
         ofname = os.path.join(opath_mod, fname)
@@ -1632,7 +1652,7 @@ def GBsim_hpc_parallel_time(
         if len(procs_running) < nmaxproc:
             procs_running.append(procs[0])
             procs[0].start()
-            time.sleep(1)
+            time.sleep(0.1)
             log.info ('{} has been started'.format(procs[0].name))
             procs.remove(procs[0])
         else:
