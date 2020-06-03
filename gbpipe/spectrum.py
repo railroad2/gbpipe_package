@@ -46,10 +46,10 @@ def get_spectrum_camb(lmax,
 
 
     ## call camb
-    if ini_file is None:
+    if inifile is None:
         pars = camb.CAMBparams()
     else:
-        pars = camb.read_ini(ini_file)
+        pars = camb.read_ini(inifile)
 
     kwargs_cosmology['H0'] = pars.H0
     pars.set_cosmology(**kwargs_cosmology)
