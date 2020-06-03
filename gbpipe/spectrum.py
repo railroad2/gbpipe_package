@@ -37,7 +37,7 @@ def arg2dict(**kwargs):
 
 def get_spectrum_camb(lmax, 
                       isDl=False, cambres=False, TTonly=False, unlensed=False, CMB_unit=None, 
-                      ini_file=None,
+                      inifile=None,
                       **kwargs):
     """
     """
