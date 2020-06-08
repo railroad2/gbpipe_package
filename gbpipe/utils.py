@@ -335,6 +335,10 @@ def ippsi2qu(Ip, psi):
 
 
 def mkdir(path):
+    if os.path.isdir(path):
+        print (f'Directory {path} already exists...') 
+        return 
+
     spath = path.split(os.sep)
     
     if path[0] == '/':
@@ -346,8 +350,7 @@ def mkdir(path):
         cpath = os.path.join(cpath, i)
         if not os.path.isdir(cpath):
             os.mkdir(cpath)
-
-    print (f'Directory {path} has been made')
+    print (f'Directory {path} has been created.')
 
     return 
 
