@@ -105,7 +105,7 @@ def get_spectrum_map(mapT, lmax=2000, isDL=False):
         return cls
 
 
-def get_spectrum_noise(lmax, wp, fwhm=None, isDl=True, TTonly=False, CMB_unit=None):
+def get_spectrum_noise(lmax, wp, fwhm=None, isDl=False, TTonly=False, CMB_unit=None):
     cls = np.array([(np.pi/10800 * wp * 1e-6) ** 2]*(lmax+1)) # wp is w_p^(-0.5) in uK arcmin
     cls[0] = cls[1] = 0
 
@@ -114,10 +114,10 @@ def get_spectrum_noise(lmax, wp, fwhm=None, isDl=True, TTonly=False, CMB_unit=No
 
     if fwhm:
         ell = np.arange(lmax+1)
-        cls *= np.exp(ell**2 * fwhm * (np.pi/10800)**2 / 8 / np.log(2))
+        cls *= np.exp(ell**2 * fwhm * (np.pi/180)**2 / 8 / np.log(2))
 
     if (not TTonly):
-        cls = np.array([cls]*4) #+ [np.zeros(cls.shape)])
+        cls = np.array(cls, cls*2, cls*2, cls*0) #+ [np.zeros(cls.shape)])
 
     if (isDl):
         res = cl2dl(cls)
