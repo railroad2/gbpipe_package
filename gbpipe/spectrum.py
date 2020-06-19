@@ -117,7 +117,7 @@ def get_spectrum_noise(lmax, wp, fwhm=None, isDl=False, TTonly=False, CMB_unit=N
         cls *= np.exp(ell**2 * fwhm * (np.pi/180)**2 / 8 / np.log(2))
 
     if (not TTonly):
-        cls = np.array(cls, cls*2, cls*2, cls*0) #+ [np.zeros(cls.shape)])
+        cls = np.array([cls, cls*2, cls*2, cls*0]) #+ [np.zeros(cls.shape)])
 
     if (isDl):
         res = cl2dl(cls)
