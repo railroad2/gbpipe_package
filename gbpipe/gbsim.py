@@ -226,13 +226,14 @@ def sim_obs_singlepix(t1, t2, fsample=1000):
     az0 = 0
     t = ut-ut[0]
     az = (az0 + t * par.omega_gb) % 360
+    psi_bore = par.psi
 
     ##########################################
     # get Rotation matrix & rotate z vector
     ##########################################
 
     v = (0, 0, 1)
-    rmat = gbdir.Rot_matrix(az=az, lst=lst)
+    rmat = gbdir.Rot_matrix(az=az, lst=lst, psi=psi_bore)
     v_obs = gbdir.Rotate(v_arr=v, rmat=rmat) 
 
     #########################################
@@ -911,9 +912,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
            module_id_set, hitmap
 
 
-def sim_nhit_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
-                              module_id=None, nside_hitmap=False, 
-                              convention_LT=True):
+def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000, 
+                              module_id=None, convention_LT=False):
     """ Simulate N-hit map for an observation with a focal plane. 
     
     Parameters
@@ -925,18 +925,8 @@ def sim_nhit_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
     fsample : float
         Sampling frequency in sps.
         Default is 1000.
-    map_in : float array
-        Input map for tod simulation.
-        If None, it synthesizes a map by using rseed as a random seed. 
-        Default is None.
-    rseed : int
-        Random seed that is used to synthesize the source map.
-        Default is 42.
     module_id : int or int array
         Indices of the modules to be used.
-    nside_hitmap : int
-        Nside of N-hit maps to be generated.
-        If False, N-hit map will not be generated.
     convention_LT : bool
         If True, the psi angles are defined in LightTools convention. 
         Otherwise, the psi angles are defined in spherical coordinates.  
@@ -1081,24 +1071,21 @@ def sim_nhit_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
     del(pv_obs)
 
-    #########################################
-    # TOD from map_in
-    #########################################
-
     log.info('getting npix from vectors ')
     ## observed pixels for N-hit map, pix_hit: (nsample * ndetector)
-    if nside_hitmap:
-        pix_hit = hp.vec2pix(nside_hitmap, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
+    pix_hit = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
 
     del(v_obs); 
 
+    hit_pix_mod = []
+    n0 = 0
     for n in np.add.accumulate(modpix_cnt):
         hit_pix_mod.append(pix_hit[:, n0:n])
         n0 = n
 
     hitmap = []
     for pixs in hit_pix_mod:
-        hitmap_tmp = np.full(12*nside_hitmap**2, hp.UNSEEN)
+        hitmap_tmp = np.full(12*nside**2, hp.UNSEEN)
         npix, nhit = np.unique(pixs, return_counts=True) 
         hitmap_tmp[npix] = nhit
         hitmap.append(hitmap_tmp)
