@@ -911,6 +911,219 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
            module_id_set, hitmap
 
 
+def sim_nhit_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
+                              module_id=None, nside_hitmap=False, 
+                              convention_LT=True):
+    """ Simulate N-hit map for an observation with a focal plane. 
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    map_in : float array
+        Input map for tod simulation.
+        If None, it synthesizes a map by using rseed as a random seed. 
+        Default is None.
+    rseed : int
+        Random seed that is used to synthesize the source map.
+        Default is 42.
+    module_id : int or int array
+        Indices of the modules to be used.
+    nside_hitmap : int
+        Nside of N-hit maps to be generated.
+        If False, N-hit map will not be generated.
+    convention_LT : bool
+        If True, the psi angles are defined in LightTools convention. 
+        Otherwise, the psi angles are defined in spherical coordinates.  
+    
+    Returns
+    -------
+    ut : float array
+        Time stamp in unixtime.
+    el : float or float array
+        Elevation.
+    az : float array
+        Azimuth angle
+    dec : float array
+        Declination.
+    ra : float array
+        Right ascension.
+    psi_equ : float array
+        psi angle of the GB center in equatorial coordinate.
+    tod_Ix_mod : float array
+        Simulated tod Ix for given modules.
+    tod_Iy_mod : float array
+        Simulated tod Iy for given modules.
+    tod_psi_mod : float array
+        Simulated tod psi for given modules.
+    tod_pix_mod : float array
+        Observed sky pixel 
+    module_id_set : int or int array
+        Indices of the used modules.
+    hitmap : float array
+        N-hit maps for each modules.
+    """ 
+    param = GBparam()
+    log = set_logger(mp.current_process().name)
+
+    ##################################
+    # calculate local sidereal time
+    ##################################
+
+    st = Time(t1, format='isot', scale='utc')
+    et = Time(t2, format='isot', scale='utc')
+
+    log.info('Making time stamps')
+    ## assuming that the Earth rotation is constant within a second.
+    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
+    ut_1s = ut[::fsample]
+    lst_1s = gbdir.unixtime2lst(ut_1s)
+    ut2lst_tmp = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
+    lst = ut2lst_tmp(ut)
+    del(ut2lst_tmp)
+
+    ######################################
+    # define GB rotation (azimuth) angle 
+    ######################################
+
+    az0 = 0
+    t = ut-ut[0]
+    az = (az0 + t * param.omega_gb) % 360
+
+    ##########################################
+    # get Rotation matrix & rotate
+    ##########################################
+
+    ## get module pixels
+    ## modset: all modules in pixel information
+    modset = set(map(int, param.pixinfo['mod'])) 
+    if (module_id is None):
+        module_id = list(modset)
+
+    ## modcnt: number of modules
+    module_cnt = len(np.array(module_id).flatten())    
+
+    if module_cnt == 0: 
+        module_id = list(modset)
+    elif module_cnt == 1:
+        module_id = [module_id]
+    else:
+        module_id = list(module_id)
+
+    ## Is selected modules a subset of modset? 
+    if not (set(module_id) <= modset):  
+        log.warning('module_id {} should be a subset of {}. Using available modules only.'.format(module_id, modset))
+        module_id_set = list(set(module_id).intersection(modset))
+        if len(module_id_set) == 0:
+            log.critical('No available modules.')
+            raise
+    else:
+        module_id_set = module_id
+
+    ## considering pixels in modules
+    modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id_set))
+    modpix = sum(modpix_arr, [])
+    modpix_cnt = list(map(len, modpix_arr))
+
+    ## print out the number of pixels in each module.
+    for n, npix in zip(module_id_set, modpix_cnt):
+        log.debug('Module {} has {} pixels.'.format(int(n), npix))
+
+    ## get rotation matrices
+    theta = param.pixinfo['theta'][modpix]
+    phi = param.pixinfo['phi'][modpix]
+
+    ## direction in horizontal coordinate, v_arr: (ndetector * 3)
+    v_arr = hp.ang2vec(np.radians(theta), np.radians(phi)) 
+    log.debug('v_arr.shape: {}'.format(v_arr.shape))
+    del(theta)
+    del(phi)
+    
+    log.info('calculating rotation matrix ')
+    el = param.el
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
+    del(lst)
+
+    log.info('Rotate vectors')
+    ## direction on sky, v_obs: (nsample * 3 * ndetector)
+    v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat) 
+    
+    ## rotate zenith to get declination and right ascension
+    v_zen = gbdir.Rotate(v_arr=(0, 0, 1), rmat=rmat)
+
+    ## longitude and latitude in degrees
+    ra, dec, psi_equ = gbdir.rmat2equatorial(rmat, deg=True)
+
+    ## polarization angles
+    pangle = param.pixinfo['omtffr'][modpix]
+    if (convention_LT):
+        ## polarisation vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec_xp(v_arr=v_arr, psi=pangle) 
+    else:
+        ## polarization vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec(v_arr=v_arr, psi=pangle) 
+    log.debug('pv.shape: {}'.format(pv.shape))
+
+    log.info ('Rotate polarization vectors')
+    ## polarization vectors on sky, pv_obs:(nsample * 3 * ndetector)
+    pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat) 
+
+    log.info('Calculating polarization directions')
+    log.debug('v_obs.shape: {}'.format(v_obs.shape))
+    log.debug('pv_obs.shape: {}'.format(pv_obs.shape))
+    ## polarization angles on sky psi_obs: (nsample * ndetector)
+    psi_obs = gbdir.angle_from_meridian(v_obs, pv_obs) 
+
+    del(pv_obs)
+
+    #########################################
+    # TOD from map_in
+    #########################################
+
+    log.info('getting npix from vectors ')
+    ## observed pixels for N-hit map, pix_hit: (nsample * ndetector)
+    if nside_hitmap:
+        pix_hit = hp.vec2pix(nside_hitmap, v_obs[:,0], v_obs[:,1], v_obs[:,2]) 
+
+    del(v_obs); 
+
+    for n in np.add.accumulate(modpix_cnt):
+        hit_pix_mod.append(pix_hit[:, n0:n])
+        n0 = n
+
+    hitmap = []
+    for pixs in hit_pix_mod:
+        hitmap_tmp = np.full(12*nside_hitmap**2, hp.UNSEEN)
+        npix, nhit = np.unique(pixs, return_counts=True) 
+        hitmap_tmp[npix] = nhit
+        hitmap.append(hitmap_tmp)
+
+    opath = './'
+    hpath = opath + 'hitmap'
+    mkdir(hpath)
+    hfname = os.path.join(hpath, 'hitmap_{}_{}.fits'.format(fprefix, t1, t2))
+    cnames = ['hitmap_'+str(i) for i in nmodout]
+
+    if (os.path.isfile(hfname)):
+        log.warning('{} has been overwritten.'.format(hfname))
+
+    hp.write_map(hfname, hitmap, column_names=cnames, overwrite=True)
+
+    log.info('N-hit map is written in {}.'.format(hfname))
+    log.info('N-hit simulation end')
+
+    #return ut, el, az, dec, ra, psi_equ, \
+    #       tod_Ix_mod, tod_Iy_mod, tod_psi_mod, tod_pix_mod,\
+    #       module_id_set, hitmap
+
+    return hitmap
+
+
 def wr_tod2fits_TQU(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     """ Write tod in fits file.
     
