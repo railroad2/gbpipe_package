@@ -913,7 +913,8 @@ def sim_tod_focalplane_module(t1, t2, fsample=1000, map_in=None, rseed=42,
 
 
 def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000, 
-                              module_id=None, convention_LT=False):
+                               param=None, module_id=None, convention_LT=False, 
+                               fprefix=None):
     """ Simulate N-hit map for an observation with a focal plane. 
     
     Parameters
@@ -933,32 +934,13 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
     
     Returns
     -------
-    ut : float array
-        Time stamp in unixtime.
-    el : float or float array
-        Elevation.
-    az : float array
-        Azimuth angle
-    dec : float array
-        Declination.
-    ra : float array
-        Right ascension.
-    psi_equ : float array
-        psi angle of the GB center in equatorial coordinate.
-    tod_Ix_mod : float array
-        Simulated tod Ix for given modules.
-    tod_Iy_mod : float array
-        Simulated tod Iy for given modules.
-    tod_psi_mod : float array
-        Simulated tod psi for given modules.
-    tod_pix_mod : float array
-        Observed sky pixel 
-    module_id_set : int or int array
-        Indices of the used modules.
     hitmap : float array
         N-hit maps for each modules.
     """ 
-    param = GBparam()
+
+    if param is None:
+        param = GBparam()
+
     log = set_logger(mp.current_process().name)
 
     ##################################
@@ -1006,6 +988,7 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
         module_id = list(module_id)
 
     ## Is selected modules a subset of modset? 
+    """
     if not (set(module_id) <= modset):  
         log.warning('module_id {} should be a subset of {}. Using available modules only.'.format(module_id, modset))
         module_id_set = list(set(module_id).intersection(modset))
@@ -1014,15 +997,16 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
             raise
     else:
         module_id_set = module_id
+    """
 
     ## considering pixels in modules
-    modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id_set))
+    modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id))
     modpix = sum(modpix_arr, [])
     modpix_cnt = list(map(len, modpix_arr))
 
     ## print out the number of pixels in each module.
-    for n, npix in zip(module_id_set, modpix_cnt):
-        log.debug('Module {} has {} pixels.'.format(int(n), npix))
+    for n, npix in zip(module_id, modpix_cnt):
+        log.debug('Module {} has {} pixels.'.format(n, npix))
 
     ## get rotation matrices
     theta = param.pixinfo['theta'][modpix]
@@ -1036,7 +1020,8 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
     
     log.info('calculating rotation matrix ')
     el = param.el
-    rmat = gbdir.Rot_matrix(az=az, lst=lst)
+    psi = param.psi
+    rmat = gbdir.Rot_matrix(el=el, az=az, lst=lst, psi=psi)
     del(lst)
 
     log.info('Rotate vectors')
@@ -1085,16 +1070,26 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
 
     hitmap = []
     for pixs in hit_pix_mod:
-        hitmap_tmp = np.full(12*nside**2, hp.UNSEEN)
+        hitmap_tmp = np.full(12*nside**2, 0) # hp.UNSEEN
         npix, nhit = np.unique(pixs, return_counts=True) 
         hitmap_tmp[npix] = nhit
         hitmap.append(hitmap_tmp)
 
+    if len(hitmap) > 2:
+        hitmap.append(np.sum(hitmap[1:], axis=0))
+
     opath = './'
     hpath = opath + 'hitmap'
     mkdir(hpath)
-    hfname = os.path.join(hpath, 'hitmap_{}_{}.fits'.format(fprefix, t1, t2))
-    cnames = ['hitmap_'+str(i) for i in nmodout]
+    fname = 'hitmap'
+    if fprefix:
+        fname += f'_{fprefix}'
+    fname += f'_{t1}_{t2}.fits'
+
+    hfname = os.path.join(hpath, fname)
+    cnames = ['hitmap_'+str(i) for i in module_id]
+    if len(hitmap) > 2:
+        cnames.append('hitmap_145')
 
     if (os.path.isfile(hfname)):
         log.warning('{} has been overwritten.'.format(hfname))
