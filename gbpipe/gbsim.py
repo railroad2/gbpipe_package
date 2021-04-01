@@ -1722,7 +1722,8 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
                 'ISOT0': (t1, 'Observation start time'), 
                 'ISOT1': (t2, 'Observation end time'),
                 'FSAMPLE': (fsample, 'Sampling frequency (Hz)'),
-                'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                #'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                'NMODULES': (str(module_id), 'Used modules'),
                 #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
                }
     
