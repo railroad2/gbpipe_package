@@ -91,7 +91,7 @@ def sim_noise1f_old(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=Fa
     return res
 
 
-def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False):
+def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False, only1f=False):
     """ Generates noise tod which has power spectrum of 
     s(f) = (sigma**2/NFFT)*(1 + (fknee/f)**alpha)
 
@@ -124,7 +124,7 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
     """ 
     log = set_logger(function_name())
     
-    psdf, psdv = noise_psd(fknee, NET=wnl, fsample=fsample, alpha=alpha)
+    psdf, psdv = noise_psd(fknee, NET=wnl, fsample=fsample, alpha=alpha, only1f=only1f)
     # psdv * 2 : noise_psd() generates psd only for positive frequencies. 
     #            to account the negative psd, psd should be doubled. 
     tod = noise_generator_v1(l, psdf, psdv*2, fsample=fsample, seed=rseed)
@@ -137,7 +137,7 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False)
     return res
 
 
-def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=1000, alpha=1):
+def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=1000, alpha=1, only1f=False):
     nyquist = fsample / 2.0
 
     tempfreq = []
@@ -157,7 +157,10 @@ def noise_psd(fknee, NET=310e-6, fmin=1e-5, fsample=1000, alpha=1):
     ktemp = np.power(fknee, alpha)
     mtemp = np.power(fmin, alpha)
     temp = np.power(tempfreq, alpha)
-    psds = (temp + ktemp) / (temp + mtemp)
+    if only1f:
+        psds = (ktemp) / (temp + mtemp)
+    else:
+        psds = (temp + ktemp) / (temp + mtemp)
     psds *= (NET * NET)
     return tempfreq, psds
 
@@ -1602,7 +1605,8 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
                 'ISOT0': (t1, 'Observation start time'), 
                 'ISOT1': (t2, 'Observation end time'),
                 'FSAMPLE': (fsample, 'Sampling frequency (Hz)'),
-                'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                #'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
+                'NMODULES': (str(module_id), 'Used modules'),
                 #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
                }
     
