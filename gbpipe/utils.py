@@ -353,7 +353,7 @@ def mkdir(path, logger=None):
         cpath = os.path.join(cpath, i)
         if not os.path.isdir(cpath):
             try:
-                os.mkdir(cpath, logger)
+                os.mkdir(cpath)
             except FileExistsError:
                 if logger is None:
                     print (f'Directory {path} already exists...') 
