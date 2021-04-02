@@ -1629,23 +1629,32 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
         ofname = os.path.join(opath, fname)
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
     else:
+        """
         opath = outpath
         try:
             os.mkdir(opath)
         except OSError:
             log.warning('The path {} exists.'.format(opath))
+
         opath = os.path.join(opath, t1[:10])
         try:
             os.mkdir(opath)
         except OSError:
             log.warning('The path {} exists.'.format(opath))
+
         opath = os.path.join(opath, fprefix)
         try:
             os.mkdir(opath)
         except OSError:
             log.warning('The path {} exists.'.format(opath))
+        """
+
+        opath = os.path.join(outpath, t1[:10], fprefix)
+        mkdir(opath)
+
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
+
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
@@ -1746,6 +1755,7 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
         ofname = os.path.join(opath, fname)
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
     else:
+        """
         opath = outpath
         try:
             os.mkdir(opath)
@@ -1761,8 +1771,14 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
             os.mkdir(opath)
         except OSError:
             log.warning('The path {} exists.'.format(opath))
+        """
+
+        opath = os.path.join(outpath, t1[:10], fprefix)
+        mkdir(opath)
+
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
+
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
@@ -2049,6 +2065,118 @@ def GBsim_noise_long(
                           args=(t1, t2, noise, dtsec, fsample, wnl, fknee, alpha, 
                                 rseeds[i], module_id, fprefix, outpath))
         procs.append(proc)
+
+    log.debug(procs)
+    
+    procs_running = []
+    while len(procs):
+        if len(procs_running) < nmaxproc:
+            procs_running.append(procs[0])
+            procs[0].start()
+            log.info ('{} has been started'.format(procs[0].name))
+            procs.remove(procs[0])
+        else:
+            for proc in procs_running:
+                if not proc.is_alive():
+                    proc.join()
+                    procs_running.remove(proc)
+             
+    for proc in procs_running:
+        proc.join()
+
+    return
+
+
+def GBsim_noise_fullmod(
+        t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
+        dtsec=600, fsample=10, 
+        wnl=1, fknee=1, alpha=1, rseed=0,
+        module_id=None, fprefix='GBtod_noise', outpath='.', nproc=8):
+
+    """ GroundBIRD simulation module for noise. It is parallelized 
+    over the time.
+
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2 in second.
+        Default is 600.
+    fsample : float
+        Sampling frequency in sps.
+    wnl : float
+        White noise level.
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise spectrum in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise. 
+        Default is 1.
+    rseed : int
+        Random seed to be used for white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nproc : int
+        Maximum number of processes.
+        Default is 8.
+    """
+    log = set_logger(mp.current_process().name)
+
+    st = t1
+    et = t2
+
+    if (outpath is None):
+        outpath = './{}_GBsim'.format(today())
+
+    st = Time(st, format='isot', scale='utc')
+    et = Time(et, format='isot', scale='utc')
+    dt = TimeDelta(dtsec, format='sec')
+    tot = int(et.unix - st.unix)
+
+    Nf = int((et-st)/dt) 
+    procs = []
+
+    nmaxproc = min(nproc, mp.cpu_count()-1)
+    log.info('Using {} cpus'.format(nmaxproc))
+
+    nsample = Nf
+    np.random.seed(rseed)
+    rseeds = np.random.randint(low=0, high=2**32-1, size=nsample)
+
+    log.info('Generating noise ...')
+    l = tot * fsample
+    
+    noise_full_arr = []
+    for nmod in module_id:
+        noise_full_arr.append(sim_noise1f(l, wnl, fknee, fsample, alpha, rseed=rseed))
+
+    log.info('Generating noise finished')
+
+    for i in range(Nf):
+        t1 = (st + i*dt).isot
+        t2 = (st + (i+1)*dt).isot
+        log.info('t1={}, t2={}'.format(t1, t2))
+        l1 = int(dtsec * fsample)
+        noise = []
+        for noise_full in noise_full_arr:
+            noise.append(noise_full[l1*i:l1*(i+1)])
+            proc = mp.Process(target=func_parallel_noise_long,
+                              args=(t1, t2, noise, dtsec, fsample, wnl, fknee, alpha, 
+                                    rseeds[i], module_id, fprefix, outpath))
+            procs.append(proc)
 
     log.debug(procs)
     
