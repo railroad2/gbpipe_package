@@ -1610,45 +1610,21 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
                 #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
                }
     
+    opath = os.path.join(outpath, t1[:10], fprefix)
+    mkdir(opath)
+
+    ofname = os.path.join(opath, fname)
+    wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
+    
+    """
+    ## at IAC
     if (socket.gethostname() == 'criar'):
-        opath = outpath 
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, t1[:10])
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        opath = os.path.join(opath, fprefix)
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
+        opath = os.path.join(outpath, t1[:10], fprefix)
+        mkdir(opath)
+
         ofname = os.path.join(opath, fname)
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
     else:
-        """
-        opath = outpath
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-
-        opath = os.path.join(opath, t1[:10])
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-
-        opath = os.path.join(opath, fprefix)
-        try:
-            os.mkdir(opath)
-        except OSError:
-            log.warning('The path {} exists.'.format(opath))
-        """
-
         opath = os.path.join(outpath, t1[:10], fprefix)
         mkdir(opath)
 
@@ -1658,6 +1634,7 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
         wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
+    """
 
     return
 
@@ -2144,7 +2121,6 @@ def GBsim_noise_fullmod(
     st = Time(st, format='isot', scale='utc')
     et = Time(et, format='isot', scale='utc')
     dt = TimeDelta(dtsec, format='sec')
-    tot = int(et.unix - st.unix)
 
     Nf = int((et-st)/dt) 
     procs = []
@@ -2156,27 +2132,14 @@ def GBsim_noise_fullmod(
     np.random.seed(rseed)
     rseeds = np.random.randint(low=0, high=2**32-1, size=nsample)
 
-    log.info('Generating noise ...')
-    l = tot * fsample
-    
-    noise_full_arr = []
-    for nmod in module_id:
-        noise_full_arr.append(sim_noise1f(l, wnl, fknee, fsample, alpha, rseed=rseed))
-
-    log.info('Generating noise finished')
-
     for i in range(Nf):
         t1 = (st + i*dt).isot
         t2 = (st + (i+1)*dt).isot
         log.info('t1={}, t2={}'.format(t1, t2))
-        l1 = int(dtsec * fsample)
-        noise = []
-        for noise_full in noise_full_arr:
-            noise.append(noise_full[l1*i:l1*(i+1)])
-            proc = mp.Process(target=func_parallel_noise_long,
-                              args=(t1, t2, noise, dtsec, fsample, wnl, fknee, alpha, 
-                                    rseeds[i], module_id, fprefix, outpath))
-            procs.append(proc)
+        proc = mp.Process(target=func_parallel_noise,
+                          args=(t1, t2, dtsec, fsample, wnl, fknee, alpha, 
+                                rseeds[i], module_id, fprefix, outpath))
+        procs.append(proc)
 
     log.debug(procs)
     

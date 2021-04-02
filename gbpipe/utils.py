@@ -334,9 +334,12 @@ def ippsi2qu(Ip, psi):
     return Q, U
 
 
-def mkdir(path):
+def mkdir(path, logger=None):
     if os.path.isdir(path):
-        print (f'Directory {path} already exists...') 
+        if logger is None:
+            print (f'Directory {path} already exists...') 
+        else:
+            logger.warning(f'Directory {path} already exists...') 
         return 
 
     spath = path.split(os.sep)
@@ -349,8 +352,16 @@ def mkdir(path):
     for i in spath:
         cpath = os.path.join(cpath, i)
         if not os.path.isdir(cpath):
-            os.mkdir(cpath)
+            try:
+                os.mkdir(cpath, logger)
+            except FileExistsError:
+                if logger is None:
+                    print (f'Directory {path} already exists...') 
+                else:
+                    logger.warning(f'Directory {path} already exists...') 
+
     print (f'Directory {path} has been created.')
 
     return 
+
 
