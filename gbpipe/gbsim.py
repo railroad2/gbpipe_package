@@ -1083,7 +1083,7 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
 
     opath = './'
     hpath = opath + 'hitmap'
-    mkdir(hpath)
+    mkdir(hpath, log)
     fname = 'hitmap'
     if fprefix:
         fname += f'_{fprefix}'
@@ -1511,7 +1511,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
                    }
 
         opath_mod = os.path.join(opath, f'module_{mod_idx}')
-        mkdir(opath_mod)
+        mkdir(opath_mod, log)
             
         ofname = os.path.join(opath_mod, fname)
         wr_tod2fits_singlemod(ofname, ut, az, dec, ra, psi_equ, tod_Ix[i], tod_Iy[i], tod_psi[i], tod_pix[i], mod_idx, **aheaders)
@@ -1522,7 +1522,7 @@ def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits',
 
     if nside_hitmap:
         hpath = opath + '_hitmap'
-        mkdir(hpath)
+        mkdir(hpath, log)
         hfname = os.path.join(hpath, '{}_hitmap_{}_{}.fits'.format(fprefix, t1, t2))
         cnames = ['hitmap_'+str(i) for i in nmodout]
 
@@ -1611,7 +1611,7 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
                }
     
     opath = os.path.join(outpath, t1[:10], fprefix)
-    mkdir(opath)
+    mkdir(opath, log)
 
     ofname = os.path.join(opath, fname)
     wr_tod2fits_noise(ofname, ut, noise, module_id, **aheaders)
@@ -1751,7 +1751,7 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
         """
 
         opath = os.path.join(outpath, t1[:10], fprefix)
-        mkdir(opath)
+        mkdir(opath, log)
 
         ofname = os.path.join(opath, fname)
         dfname = os.path.join(opath, fname)
