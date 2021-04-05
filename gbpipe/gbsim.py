@@ -120,7 +120,6 @@ def sim_noise1f(l, wnl, fknee, fsample=1000, alpha=1, rseed=0, return_psd=False,
         frequency of psd (optional)
     s_1f : float array
         analytic power spectral density (optional)
-         
     """ 
     log = set_logger(function_name())
     
@@ -1109,6 +1108,50 @@ def sim_nhit_focalplane_module(t1, t2, nside=1024, fsample=1000,
     return hitmap
 
 
+def sim_noise_focalplane_module(t1, t2, nside=1024, fsample=1000, 
+                                wnl=1, fknee=1, alpha=1,
+                                param=None, module_id=None, fprefix=None, rseed=49223):
+
+    log = set_logger(mp.current_process().name)
+
+    st = Time(t1, format='isot', scale='utc')
+    et = Time(t2, format='isot', scale='utc')
+
+    log.info('Making time stamps')
+    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
+     
+    len(module_id)
+    try:
+        nmodule = len(module_id)
+    except TypeError:
+        nmodule = 1
+
+    nsample = len(ut) 
+    ndetector = 23
+    
+    noise_Ix = np.zeros((nmodule, nsample, ndetector))
+    noise_Iy = np.zeros((nmodule, nsample, ndetector))
+
+    log.info('Generating noise')
+    np.random.seed(rseed)
+    for nm in range(nmodule):
+        log.info(f'  for module {nm}')
+        for nd in range(ndetector):
+            log.info(f'  for detector {nd}')
+
+            seed = np.random.randint(0, 2**31-1)
+            noise_single = sim_noise1f(nsample, wnl, fknee, fsample, alpha, rseed=seed)
+            noise_Ix[nm, :, nd] = noise_single
+
+            seed = np.random.randint(0, 2**31-1)
+            noise_single = sim_noise1f(nsample, wnl, fknee, fsample, alpha, rseed=seed)
+            noise_Iy[nm, :, nd] = noise_single
+        
+    log.info(f'Noise arrays with dimension of {noise_Ix.shape} is generated.')
+    
+    return noise_Ix, noise_Iy
+
+
 def wr_tod2fits_TQU(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     """ Write tod in fits file.
     
@@ -1396,6 +1439,54 @@ def wr_tod2fits_noise(fname, ut, noise, module_id, **aheaders):
 
     return
 
+
+def wr_tod2fits_noise_singlemod(fname, ut, noise_Ix, noise_Iy, module_id, **aheaders):
+    """ Write tod for single module in fits file. 
+
+    Parameters
+    ----------
+    fname : string
+        fits file name.
+    ut : float array
+        Timestamp in unixtime.
+    noise_Ix : float array
+        noise TOD Ix for a module.
+    noise_Iy : float array
+        noise TOD Iy for a module.
+    module_id : int or int array
+        Module indices
+    **aheaders : dictionary
+        Additional headers.
+    """
+
+    log = set_logger(mp.current_process().name)
+    cols = [fits.Column(name='UT',      format='D', array=ut )]
+
+    header = fits.Header()
+    for key, value in aheaders.items():
+        header[key] = value
+        
+    n = module_id
+
+    cols.append(fits.Column(name='noise_Ix', 
+                            format='{}D'.format(np.prod(np.shape(noise_Ix)[1:])), 
+                            array=noise_Ix))
+
+    cols.append(fits.Column(name='noise_Iy', 
+                            format='{}D'.format(np.prod(np.shape(noise_Iy)[1:])), 
+                            array=noise_Iy))
+
+    hdu = fits.BinTableHDU.from_columns(cols, header)
+
+    try: 
+        hdu.writeto(fname)
+        log.info('{} has been created.'.format(fname))
+    except OSError:
+        hdu.writeto(fname, overwrite=True)
+        log.warning('{} has been overwritten.'.format(fname))
+
+    return
+
 '''
 def scp_file(local_path, remote_path, remove=False):
     """ Copy the files to criar. """
@@ -1641,8 +1732,7 @@ def func_parallel_noise(t1, t2, dtsec=600, fsample=10,
 
 def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10, 
                         wnl=1, fknee=1, alpha=1, rseed=0, 
-                        module_id=None, fprefix='GBtod_noise', 
-                        outpath='.', transferFile=False):
+                        module_id=None, fprefix='GBtod_noise', outpath='.'):
     """ Function for a parallelization of the noise simulation.
     
     Parameters
@@ -1708,9 +1798,7 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
                 'ISOT0': (t1, 'Observation start time'), 
                 'ISOT1': (t2, 'Observation end time'),
                 'FSAMPLE': (fsample, 'Sampling frequency (Hz)'),
-                #'NMODULES': (str(list(map(int, module_id)))[1:-1], 'Used modules'),
                 'NMODULES': (str(module_id), 'Used modules'),
-                #'NMODPIXS': (str(modpix_cnt)[1:-1], 'Number of pixels in each module'),
                }
     
     if (socket.gethostname() == 'criar'):
@@ -1760,6 +1848,92 @@ def func_parallel_noise_long(t1, t2, noise, dtsec=600, fsample=10,
         if (transferFile):
             scp_file(ofname, dfname, remove=True)
 
+    return
+
+
+def func_parallel_noise_fullmod(t1, t2, dtsec=600, fsample=10, 
+                        wnl=1, fknee=1, alpha=1, rseed=0, 
+                        module_id=None, fprefix='GBtod_noise', 
+                        outpath='.', transferFile=False):
+    """ Function for a parallelization of the noise simulation.
+    
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 10.
+    wnl : float
+        White noise level. (The unit is not deterined yet.)
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise.
+        Default is 1.
+    rseed : int
+        Random seed to be used in white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    transferFile : bool
+        If True, the data files are transferred to criar automatically.
+        Default is False.
+    """
+
+    log = set_logger(mp.current_process().name)
+
+    if module_id is None:
+        module_id = list(range(6))
+
+    log.info('Making time stamps')
+    st = Time(t1, format='isot', scale='utc')
+    et = Time(t2, format='isot', scale='utc')
+    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
+
+    l = dtsec * fsample
+
+    if (len(ut) != l):
+        log.error('Something is wrong. (len(ut)={}) != (l={})'.format(len(ut), l))
+
+    noise_Ix, noise_Iy = sim_noise_focalplane_module(t1, t2, nside=1024, fsample=1000, 
+                                wnl=1, fknee=1, alpha=1, rseed=rseed,
+                                module_id=module_id, fprefix=fprefix)
+
+    opath = os.path.join(outpath, t1[:10], fprefix)
+
+    for i, mod_idx in enumerate(module_id):
+        fname = f'{fprefix}_mod{mod_idx}_{t1}_{t2}.fits'
+        aheaders = {'FNAME'   : fname, 
+                    'CTIME'   : (Time.now().isot, 'File created time'),
+                    'DATATYPE': 'NOISESIM',
+                    'ISOT0'   : (t1, 'Observation start time'), 
+                    'ISOT1'   : (t2, 'Observation end time'),
+                    'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
+                    'NMODULES': (str(mod_idx), 'Used modules'),
+                   }
+
+        opath_mod = os.path.join(opath, f'module_{mod_idx}')
+        mkdir(opath_mod, log)
+            
+        ofname = os.path.join(opath_mod, fname)
+        wr_tod2fits_noise_singlemod(ofname, ut, noise_Ix[i], noise_Iy[i], mod_idx, **aheaders)
+
+    
     return
 
 
@@ -2067,7 +2241,7 @@ def GBsim_noise_long(
 def GBsim_noise_fullmod(
         t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
         dtsec=600, fsample=10, 
-        wnl=1, fknee=1, alpha=1, rseed=0,
+        wnl=1, fknee=0.1, alpha=1, rseed=0,
         module_id=None, fprefix='GBtod_noise', outpath='.', nproc=8):
 
     """ GroundBIRD simulation module for noise. It is parallelized 
@@ -2110,6 +2284,7 @@ def GBsim_noise_fullmod(
         Maximum number of processes.
         Default is 8.
     """
+
     log = set_logger(mp.current_process().name)
 
     st = t1
@@ -2136,7 +2311,7 @@ def GBsim_noise_fullmod(
         t1 = (st + i*dt).isot
         t2 = (st + (i+1)*dt).isot
         log.info('t1={}, t2={}'.format(t1, t2))
-        proc = mp.Process(target=func_parallel_noise,
+        proc = mp.Process(target=func_parallel_noise_fullmod,
                           args=(t1, t2, dtsec, fsample, wnl, fknee, alpha, 
                                 rseeds[i], module_id, fprefix, outpath))
         procs.append(proc)
