@@ -1868,7 +1868,7 @@ def func_parallel_noise_fullmod(t1, t2, dtsec=600, fsample=10,
         Sampling frequency in sps.
         Default is 10.
     wnl : float
-        White noise level. (The unit is not deterined yet.)
+        White noise level. (The unit is K sqrt(s).)
         Default is 1.
     fknee : float
         Knee frequency of the noise in Hz.
