@@ -1137,7 +1137,6 @@ def sim_noise_focalplane_module(t1, t2, nside=1024, fsample=1000,
     for nm in range(nmodule):
         log.info(f'  for module {nm}')
         for nd in range(ndetector):
-            log.info(f'  for detector {nd}')
 
             seed = np.random.randint(0, 2**31-1)
             noise_single = sim_noise1f(nsample, wnl, fknee, fsample, alpha, rseed=seed)
@@ -1910,8 +1909,8 @@ def func_parallel_noise_fullmod(t1, t2, dtsec=600, fsample=10,
     if (len(ut) != l):
         log.error('Something is wrong. (len(ut)={}) != (l={})'.format(len(ut), l))
 
-    noise_Ix, noise_Iy = sim_noise_focalplane_module(t1, t2, nside=1024, fsample=1000, 
-                                wnl=1, fknee=1, alpha=1, rseed=rseed,
+    noise_Ix, noise_Iy = sim_noise_focalplane_module(t1, t2, nside=1024, fsample=fsample, 
+                                wnl=wnl, fknee=fknee, alpha=alpha, rseed=rseed,
                                 module_id=module_id, fprefix=fprefix)
 
     opath = os.path.join(outpath, t1[:10], fprefix)
@@ -1925,6 +1924,10 @@ def func_parallel_noise_fullmod(t1, t2, dtsec=600, fsample=10,
                     'ISOT1'   : (t2, 'Observation end time'),
                     'FSAMPLE' : (fsample, 'Sampling frequency (Hz)'),
                     'NMODULES': (str(mod_idx), 'Used modules'),
+                    'NOISELVL': (wnl, 'White noise level (uK arcmin)'), 
+                    'FKNEE'   : (fknee, 'Knee frequency of 1/f noise (Hz)'), 
+                    'ALPHA'   : (alpha, 'exponent of the 1/f noise (Hz)'), 
+                    'RSEED'   : (rseed, 'random seed for the noise generation')
                    }
 
         opath_mod = os.path.join(opath, f'module_{mod_idx}')
@@ -1932,7 +1935,6 @@ def func_parallel_noise_fullmod(t1, t2, dtsec=600, fsample=10,
             
         ofname = os.path.join(opath_mod, fname)
         wr_tod2fits_noise_singlemod(ofname, ut, noise_Ix[i], noise_Iy[i], mod_idx, **aheaders)
-
     
     return
 
