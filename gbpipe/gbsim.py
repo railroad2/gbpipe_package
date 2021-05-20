@@ -1151,6 +1151,198 @@ def sim_noise_focalplane_module(t1, t2, nside=1024, fsample=1000,
     return noise_Ix, noise_Iy
 
 
+def sim_pointing_focalplane_module(t1, t2, dtsec=600, fsample=1000, nside=1024,
+                              module_id=None, nside_hitmap=False, 
+                              convention_LT=False, outpath=None, param=None):
+    """ Simulation module for an observation with a focal plane. 
+    Writes tode by module.
+    
+    Parameters
+    ----------
+    t1 : string
+        Starting time of the simulation in ISOT.
+    t2 : string
+        End time of the simulation in ISOT.
+    fsample : float
+        Sampling frequency in sps.
+        Default is 1000.
+    module_id : int or int array
+        Indices of the modules to be used.
+    nside_hitmap : int
+        Nside of N-hit maps to be generated.
+        If False, N-hit map will not be generated.
+    convention_LT : bool
+        If True, the psi angles are defined in LightTools convention. 
+        Otherwise, the psi angles are defined in spherical coordinates.  
+    
+    Returns
+    -------
+    None
+
+    """ 
+    if param is None:
+        param = GBparam()
+
+    log = set_logger(mp.current_process().name)
+
+
+    ##################################
+    # calculate local sidereal time
+    ##################################
+
+    st = Time(t1, format='isot', scale='utc')
+    et = Time(t2, format='isot', scale='utc')
+
+    log.info('Making time stamps')
+    ## assuming that the Earth rotation is constant within a second.
+    ut = st.unix + np.arange(0, np.rint(et.unix-st.unix), 1./fsample)
+    ut_1s = ut[::fsample]
+    lst_1s = gbdir.unixtime2lst(ut_1s)
+    ut2lst_tmp = interp1d(ut_1s, lst_1s, fill_value='extrapolate')
+    lst = ut2lst_tmp(ut)
+    del(ut2lst_tmp)
+
+    ######################################
+    # define GB rotation (azimuth) angle 
+    ######################################
+
+    az0 = 0
+    t = ut-ut[0]
+    az = (az0 + t * param.omega_gb) % 360
+
+    ##########################################
+    # get Rotation matrix & rotate
+    ##########################################
+
+    ## get module pixels
+    ## modset: all modules in pixel information
+    modset = set(map(int, param.pixinfo['mod'])) 
+    if (module_id is None):
+        module_id = list(modset)
+
+    ## modcnt: number of modules
+    module_cnt = len(np.array(module_id).flatten())    
+
+    if module_cnt == 0: 
+        module_id = list(modset)
+    elif module_cnt == 1:
+        module_id = [module_id]
+    else:
+        module_id = list(module_id)
+
+    ## Is selected modules a subset of modset? 
+    if not (set(module_id) <= modset):  
+        log.warning('module_id {} should be a subset of {}. Using available modules only.'.format(module_id, modset))
+        module_id_set = list(set(module_id).intersection(modset))
+        if len(module_id_set) == 0:
+            log.critical('No available modules.')
+            raise
+    else:
+        module_id_set = module_id
+
+    ## considering pixels in modules
+    modpix_arr = list(map((lambda n: list(np.where(param.pixinfo['mod']==n)[0])), module_id_set))
+    modpix = sum(modpix_arr, [])
+    modpix_cnt = list(map(len, modpix_arr))
+
+    ## print out the number of pixels in each module.
+    for n, npix in zip(module_id_set, modpix_cnt):
+        log.debug('Module {} has {} pixels.'.format(int(n), npix))
+
+    ## get rotation matrices
+    theta = param.pixinfo['theta'][modpix]
+    phi = param.pixinfo['phi'][modpix]
+
+    ## direction in horizontal coordinate, v_arr: (ndetector * 3)
+    v_arr = hp.ang2vec(np.radians(theta), np.radians(phi)) 
+    log.debug('v_arr.shape: {}'.format(v_arr.shape))
+    del(theta)
+    del(phi)
+    
+    log.info('calculating rotation matrix ')
+    el = param.el
+    rmat = gbdir.Rot_matrix(az=az, lst=lst)
+    del(lst)
+
+    log.info('Rotate vectors')
+    ## direction on sky, v_obs: (nsample * 3 * ndetector)
+    v_obs = gbdir.Rotate(v_arr=v_arr, rmat=rmat) 
+    
+    ## rotate zenith to get declination and right ascension
+    v_zen = gbdir.Rotate(v_arr=(0, 0, 1), rmat=rmat)
+
+    ## longitude and latitude in degrees
+    #ra, dec = hp.vec2ang(v_zen, lonlat=True) 
+    ra, dec, psi_equ = gbdir.rmat2equatorial(rmat, deg=True)
+
+    ## polarization angles
+    pangle = param.pixinfo['omtffr'][modpix]
+    if (convention_LT):
+        ## polarisation vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec_xp(v_arr=v_arr, psi=pangle) 
+    else:
+        ## polarization vectors on focalplane, pv: (ndetector * 3)
+        pv = gbdir.psi2vec(v_arr=v_arr, psi=pangle) 
+    log.debug('pv.shape: {}'.format(pv.shape))
+
+    log.info ('Rotate polarization vectors')
+    ## polarization vectors on sky, pv_obs:(nsample * 3 * ndetector)
+    pv_obs = gbdir.Rotate(v_arr=pv, rmat=rmat) 
+
+    log.info('Calculating polarization directions')
+    log.debug('v_obs.shape: {}'.format(v_obs.shape))
+    log.debug('pv_obs.shape: {}'.format(pv_obs.shape))
+    ## polarization angles on sky psi_obs: (nsample * ndetector)
+    psi_obs = gbdir.angle_from_meridian(v_obs, pv_obs).T
+
+    del(pv_obs)
+
+    #########################################
+    # Npixs 
+    #########################################
+
+    log.info('getting npix from vectors ')
+
+    ## observed pixels, pix_obs: (nsample * ndetector)
+    pix_obs = hp.vec2pix(nside, v_obs[:,0], v_obs[:,1], v_obs[:,2]).T
+
+    ## observed pixels for N-hit map, pix_hit: (nsample * ndetector)
+    if nside_hitmap:
+        pix_hit = hp.vec2pix(nside_hitmap, v_obs[:,0], v_obs[:,1], v_obs[:,2])
+
+    del(v_obs); 
+
+    hit_pix_mod = []
+    n0 = 0
+    for n in np.add.accumulate(modpix_cnt):
+        if nside_hitmap:
+            hit_pix_mod.append(pix_hit[:, n0:n])
+        n0 = n
+
+    hitmap = []
+    for pixs in hit_pix_mod:
+        hitmap_tmp = np.full(12*nside**2, 0) # hp.UNSEEN
+        npix, nhit = np.unique(pixs, return_counts=True) 
+        hitmap_tmp[npix] = nhit
+        hitmap.append(hitmap_tmp)
+
+
+    if outpath is None:
+        outpath = '.'
+
+    mkdir(outpath)
+
+    if dtsec < 86400:
+        ofname = os.path.join(outpath, f'pointing_{t1}_{t2}')
+    else:
+        ofname = os.path.join(outpath, f'pointing_{t1[:10]}')
+
+        ofname_hit = os.path.join(outpath, f'hitmap_{t1[:10]}.fits')
+        hp.write_map(ofname_hit, hitmap)
+    
+    np.savez_compressed(ofname, pixs=pix_obs, psis=psi_obs)
+
+
 def wr_tod2fits_TQU(fname, ut, az, dec, ra, tod_I, tod_Q, tod_U):
     """ Write tod in fits file.
     
@@ -1486,31 +1678,6 @@ def wr_tod2fits_noise_singlemod(fname, ut, noise_Ix, noise_Iy, module_id, **ahea
 
     return
 
-'''
-def scp_file(local_path, remote_path, remove=False):
-    """ Copy the files to criar. """
-    log = set_logger(mp.current_process().name)
-    log.info('Copying file {} to criar.'.format(local_path))
-    log = set_logger(mp.current_process().name)
-    ssh_client=paramiko.client.SSHClient()
-    ssh_client.load_system_host_keys()
-    ssh_client.connect('criar')
-
-    with ssh_client.open_sftp() as sftp:
-        try:
-            sftp.put(local_path, remote_path)
-        except Exception as e:
-            log.warning('An error occured during sftping the file {}'.format(local_path)) 
-            log.warning(str(e))
-
-    log.info('Copying file complete.')
-
-    if (remove):
-        os.remove(ofname)
-        log.info('File {} has been removed.'.format(local_path))
-
-    return
-'''
 
 def func_parallel_tod(t1, t2, fsample, mapname='cmb_rseed42.fits', 
                       module_id=None, fprefix='GBtod', outpath='.', 
@@ -2324,6 +2491,104 @@ def GBsim_noise_fullmod(
     while len(procs):
         if len(procs_running) < nmaxproc:
             procs_running.append(procs[0])
+            procs[0].start()
+            log.info ('{} has been started'.format(procs[0].name))
+            procs.remove(procs[0])
+        else:
+            for proc in procs_running:
+                if not proc.is_alive():
+                    proc.join()
+                    procs_running.remove(proc)
+             
+    for proc in procs_running:
+        proc.join()
+
+    return
+
+
+def GBsim_pointing(
+        t1='2019-04-01T00:00:00', t2='2019-04-08T00:00:00', 
+        dtsec=600, fsample=10, nside=1024, nside_hit=False,
+        module_id=None, fprefix='GBpointing', outpath='.', nproc=8):
+
+    """ GroundBIRD simulation module for noise. It is parallelized 
+    over the time.
+
+    Parameters
+    ----------
+    t1 : string
+        Simulation starting time in ISOT.
+    t2 : string
+        Simulation end time in ISOT.
+    dtsec : float
+        Time interval between t1 and t2 in second.
+        Default is 600.
+    fsample : float
+        Sampling frequency in sps.
+    wnl : float
+        White noise level.
+        Default is 1.
+    fknee : float
+        Knee frequency of the noise spectrum in Hz.
+        Default is 1.
+    alpha : float
+        Exponent of the 1/f noise. 
+        Default is 1.
+    rseed : int
+        Random seed to be used for white noise generation.
+        Default is 0.
+    module_id : int or sequence of int
+        Module indicies to be used. 
+        If None, all the modules are used. 
+        Defaule is None.
+    fprefix : string
+        Prefix for the names of the fits files.
+        Default is 'GBtod_noise'.
+    outpath : string
+        Path to save the data.
+        Defalut is '.' (current directory). 
+    nproc : int
+        Maximum number of processes.
+        Default is 8.
+    """
+
+    log = set_logger(mp.current_process().name)
+
+    st = t1
+    et = t2
+
+    if (outpath is None):
+        outpath = './{}_GBsim'.format(today())
+
+    st = Time(st, format='isot', scale='utc')
+    et = Time(et, format='isot', scale='utc')
+    dt = TimeDelta(dtsec, format='sec')
+
+    Nf = int((et-st)/dt) 
+    procs = []
+
+    nmaxproc = min(nproc, mp.cpu_count()-1)
+    log.info('Using {} cpus'.format(nmaxproc))
+
+    nsample = Nf
+
+    for i in range(Nf):
+        t1 = (st + i*dt).isot
+        t2 = (st + (i+1)*dt).isot
+        log.info('t1={}, t2={}'.format(t1, t2))
+        opath = os.path.join(outpath, f'{t1[:10]}')
+        proc = mp.Process(target=sim_pointing_focalplane_module,
+                          args=(t1, t2, dtsec, fsample, nside, 
+                                module_id, nside_hit, False, opath))
+        procs.append(proc)
+
+    log.debug(procs)
+    
+    procs_running = []
+    while len(procs):
+        if len(procs_running) < nmaxproc:
+            procs_running.append(procs[0])
+            time.sleep(3)
             procs[0].start()
             log.info ('{} has been started'.format(procs[0].name))
             procs.remove(procs[0])
