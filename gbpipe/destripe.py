@@ -35,12 +35,12 @@ def polyfit_for_rej(x, y, deg=0):
 def destripe_average(data, fitlength, deg=None, return_baseline=False):
     # without for loop
     try:
-        y = np.reshape(data, (fitlength, len(data)//fitlength))
+        y = np.reshape(data, (len(data)//fitlength, fitlength))
     except:
         l = len(data)//fitlength * (fitlength+1)
         y = np.zeros(l)
         y[:len(data)] = data
-        y = np.reshape(data, (fitlength, len(data)//fitlength))
+        y = np.reshape(y, (len(y)//fitlength, fitlength))
 
     baselinetmp = np.average(y, axis=1)
     baseline = np.zeros(np.shape(y))
