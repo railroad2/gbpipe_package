@@ -276,7 +276,7 @@ def angle_from_meridian_2D(r, v):
     Returns
     -------
     psi : float or floar array
-        angles from the meridians.
+        angles from the meridians in radians.
     """
 
     r=np.array(r)
@@ -737,6 +737,7 @@ def gal2equ_pol(m_gal):
 def euler_ZYZ(angles, deg=True, new=False): 
     """ Calculates rotation matrix according to the wikipedia convention 
     (extrinsic z-y-z).
+    The order of rotation is Rz(gamma) -> Ry(beta) -> Rz(alpha) when new=False.
 
     Parameters
     ----------
@@ -975,11 +976,6 @@ def Rotate(v_arr, rmat=None):
     log.debug('rmat.shape: {}'.format(rmat.shape))
     vp_arr = np.matmul(rmat, np.array(v_arr).T)
     parangle = 0
-
-    #if (len(vp_arr[0])!=1):
-    #    vp_arr = vp_arr.T
-    #else:
-    #    vp_arr = np.ravel(vp_arr.T)
 
     return vp_arr 
 

@@ -32,6 +32,28 @@ def polyfit_for_rej(x, y, deg=0):
     
     return y_fit
 
+def destripe_average(data, fitlength, deg=None, return_baseline=False):
+    # without for loop
+    try:
+        y = np.reshape(data, (fitlength, len(data)//fitlength))
+    except:
+        l = len(data)//fitlength * (fitlength+1)
+        y = np.zeros(l)
+        y[:len(data)] = data
+        y = np.reshape(data, (fitlength, len(data)//fitlength))
+
+    baselinetmp = np.average(y, axis=1)
+    baseline = np.zeros(np.shape(y))
+    baseline = baseline.T
+    baseline[:,:] = baselinetmp
+    baseline = baseline.T.flatten()[:len(data)]
+    data_destriped = data - baseline
+
+    if return_baseline:
+        return data_destriped, baseline
+    else:
+        return data_destriped
+    
 
 def destripe_poly(data, fitlength, deg=0, return_baseline=False):
     Nslice = np.int(np.ceil(len(data) / fitlength))
