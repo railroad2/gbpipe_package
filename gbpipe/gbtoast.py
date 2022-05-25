@@ -22,10 +22,6 @@ def define_data(detectors, nsamples):
     obs = {}
     obs["name"] = "default"
     obs["tod"] = tod
-    obs["intervals"] = None
-    obs["baselines"] = None
-    obs["noise"] = None
-    obs["pixid"] = module
 
     data.obs.append(obs)
 
