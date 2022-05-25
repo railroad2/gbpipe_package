@@ -1,0 +1,5 @@
+build
+dist
+gbpipe.egg-info
+gbpipe/__pycache__
+scripts/run_slurm.sh
